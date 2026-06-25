@@ -113,13 +113,24 @@ function drawParallax() {
 }
 
 // Set ctx.font to the promo font at the largest size that fits maxW, then return.
-function fitFont(text, maxW, baseSize, weight) {
-  let size = baseSize;
-  ctx.font = `${weight} ${size}px ${PROMO_FONT}`;
-  while (size > 12 && ctx.measureText(text).width > maxW) {
-    size -= 1;
-    ctx.font = `${weight} ${size}px ${PROMO_FONT}`;
+// Greedy word-wrap using the current ctx.font.
+function wrapText(text, maxW) {
+  const words = text.split(' ');
+  const lines = [];
+  let cur = '';
+  for (const wd of words) {
+    const test = cur ? `${cur} ${wd}` : wd;
+    if (cur && ctx.measureText(test).width > maxW) { lines.push(cur); cur = wd; }
+    else cur = test;
   }
+  if (cur) lines.push(cur);
+  return lines;
+}
+// Shrink ctx.font (given weight) until text fits maxW.
+function shrinkToFit(text, maxW, baseSize, weight) {
+  let s = baseSize;
+  ctx.font = `${weight} ${s}px ${PROMO_FONT}`;
+  while (s > 14 && ctx.measureText(text).width > maxW) { s -= 1; ctx.font = `${weight} ${s}px ${PROMO_FONT}`; }
 }
 
 // Recurring promo billboard in the canopy band (decorative, no collision).
@@ -145,15 +156,25 @@ function drawBanner(x) {
   ctx.fillStyle = COLORS.bikram; ctx.beginPath(); ctx.roundRect(x + 16, y - 12, 96, 26, 8); ctx.fill();
   ctx.fillStyle = COLORS.ink; ctx.font = '18px Bangers, sans-serif'; ctx.textAlign = 'center';
   ctx.fillText('PROMO', x + 64, y + 7);
-  // content (Odia) — clip to the panel so text can never spill outside the box,
-  // and auto-fit to a tight target with margin (mobile web-fonts render wider
-  // than they measure on some browsers).
+  // content (Odia): left-aligned with padding, date wrapped to <=2 lines, all
+  // clipped to the panel. Conservative wrap target so it fits even when a mobile
+  // web-font renders wider than it measures.
   ctx.save();
-  ctx.beginPath(); ctx.roundRect(x + 14, y, w - 28, h, 12); ctx.clip();
-  fitFont(PROMO.title, w - 56, 40, 800);
-  ctx.fillStyle = COLORS.text; ctx.fillText(PROMO.title, x + w / 2, y + h * 0.46);
-  fitFont(PROMO.date, w - 52, 26, 600);
-  ctx.fillStyle = COLORS.energy; ctx.fillText(PROMO.date, x + w / 2, y + h * 0.80);
+  ctx.beginPath(); ctx.roundRect(x + 6, y, w - 12, h, 12); ctx.clip();
+  ctx.textAlign = 'left';
+  const padX = 40;
+  const tx = x + padX;
+  const innerW = w - padX - 18;
+  // title
+  shrinkToFit(PROMO.title, innerW * 0.95, 34, 800);
+  ctx.fillStyle = COLORS.text; ctx.fillText(PROMO.title, tx, y + 52);
+  // date wrapped to two short lines (wrap early so each line stays well inside
+  // the box even when a mobile web-font renders wider than it measures)
+  ctx.font = `600 23px ${PROMO_FONT}`;
+  const lines = wrapText(PROMO.date, innerW * 0.6);
+  ctx.fillStyle = COLORS.energy;
+  let dy = y + 90;
+  for (let i = 0; i < lines.length && i < 2; i++) { ctx.fillText(lines[i], tx, dy); dy += 28; }
   ctx.restore();
   ctx.restore();
 }
