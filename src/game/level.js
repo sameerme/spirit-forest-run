@@ -1,4 +1,4 @@
-import { PLAYER_X, ENERGY_PER_SPHERE, GROUND_TOP, VW, TILE, COLORS } from '../constants.js';
+import { PLAYER_X, ENERGY_PER_SPHERE, GROUND_TOP, VW } from '../constants.js';
 import { aabbOverlap } from '../engine/physics.js';
 import { createSprite, frameRect } from '../engine/sprite.js';
 import { entitiesToSpawn } from './spawner.js';
