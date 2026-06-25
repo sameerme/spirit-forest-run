@@ -1,44 +1,78 @@
-// test/player.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createBikram } from '../src/player.js';
-import { createMaze } from '../src/maze.js';
-import { TILE, COLS } from '../src/constants.js';
-import { tileToPixelCenter } from '../src/pathing.js';
+import { createPlayer } from '../src/game/player.js';
+import { GROUND_TOP, PLAYER_H, JUMP_V, ENERGY_MAX } from '../src/constants.js';
 
-test('bikram starts at the maze spawn', () => {
-  const m = createMaze();
-  const b = createBikram(m);
-  assert.deepEqual(b.tile(), m.bikramSpawn);
+const STAND_Y = GROUND_TOP - PLAYER_H;
+
+test('player starts grounded at stand height', () => {
+  const p = createPlayer();
+  assert.equal(p.grounded, true);
+  assert.equal(p.y, STAND_Y);
 });
 
-test('buffered turn applies when the corridor opens', () => {
-  const m = createMaze();
-  const b = createBikram(m);
-  // Spawn row (20) is open left/right; the row above (19) is open too.
-  b.setNextDir('up');
-  b.update(0.001); // at centre -> should adopt the buffered direction
-  assert.equal(b.dir, 'up');
+test('a buffered jump launches the player upward next update', () => {
+  const p = createPlayer();
+  p.requestJump();
+  p.update(0.016);
+  assert.equal(p.grounded, false);
+  assert.ok(p.vy < 0, 'moving upward');
+  assert.equal(p.jumpsUsed, 1);
 });
 
-test('eating a dot returns an ate event and clears the tile', () => {
-  const m = createMaze();
-  const b = createBikram(m);
-  // Place bikram on a known dot tile centre: (1, 20) is '.'
-  const p = tileToPixelCenter(1, 20);
-  b.x = p.x; b.y = p.y;
-  const ev = b.update(0.001);
-  assert.equal(ev.ate, 'dot');
-  assert.equal(m.eatAt(1, 20), null); // already eaten
+test('double jump works once, third is ignored', () => {
+  const p = createPlayer();
+  p.requestJump(); p.update(0.016);          // jump 1
+  p.requestJump(); p.update(0.016);          // jump 2 (double)
+  assert.equal(p.jumpsUsed, 2);
+  const vyAfterDouble = p.vy;
+  p.requestJump(); p.update(0.016);          // ignored
+  assert.equal(p.jumpsUsed, 2);
+  assert.ok(p.vy > vyAfterDouble, 'gravity only, no new impulse');
 });
 
-test('tunnel wrap moves bikram across the screen edge', () => {
-  const m = createMaze();
-  const b = createBikram(m);
-  // Tunnel row is 11; place just past the left edge moving left.
-  const p = tileToPixelCenter(0, 11);
-  b.x = p.x; b.y = p.y; b.dir = 'left'; b.nextDir = 'left';
-  // Several updates push x below the left bound and wrap it to the right side.
-  for (let i = 0; i < 30; i++) b.update(0.02);
-  assert.ok(b.x > (COLS - 3) * TILE, `expected wrap to right side, got x=${b.x}`);
+test('player falls and lands back on the ground', () => {
+  const p = createPlayer();
+  p.requestJump();
+  for (let i = 0; i < 200; i++) p.update(0.016); // ~3.2s, plenty to land
+  assert.equal(p.grounded, true);
+  assert.equal(p.y, STAND_Y);
+  assert.equal(p.jumpsUsed, 0);
+});
+
+test('hit costs a heart and grants invulnerability; repeat hit ignored', () => {
+  const p = createPlayer();
+  assert.equal(p.hit(), false);
+  assert.equal(p.hearts, 2);
+  assert.ok(p.invuln > 0);
+  assert.equal(p.hit(), false); // invulnerable -> no-op
+  assert.equal(p.hearts, 2);
+});
+
+test('hit returns true when the last heart is lost', () => {
+  const p = createPlayer();
+  p.hit(); p.invuln = 0;
+  p.hit(); p.invuln = 0;
+  assert.equal(p.hit(), true);
+  assert.ok(p.hearts <= 0);
+});
+
+test('energy caps and dash only triggers when full, then empties', () => {
+  const p = createPlayer();
+  p.addEnergy(40); assert.equal(p.startDash(), false);
+  p.addEnergy(1000); assert.equal(p.energy, ENERGY_MAX);
+  assert.equal(p.startDash(), true);
+  assert.ok(p.dash > 0);
+  assert.equal(p.energy, 0);
+  assert.equal(p.isInvincible(), true);
+});
+
+test('coyote time lets the player jump shortly after leaving a ledge', () => {
+  const p = createPlayer();
+  p.setAirborneFromLedge();
+  assert.equal(p.grounded, false);
+  p.requestJump();
+  p.update(0.016);
+  assert.ok(p.vy < 0, 'jumped during coyote window');
+  assert.equal(p.jumpsUsed, 1);
 });

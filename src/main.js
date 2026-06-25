@@ -1,271 +1,163 @@
-import {
-  TILE, COLS, ROWS, SCORE, LIVES, COLORS,
-  SCATTER_MS, CHASE_MS, levelTuning,
-} from './constants.js';
-import { createMaze } from './maze.js';
-import { createBikram } from './player.js';
-import { createBetaal } from './betaal.js';
-import { createAudio } from './audio.js';
-import { DIRS } from './pathing.js';
-
-const STATE = { READY: 'ready', PLAYING: 'playing', LEVEL_CLEAR: 'level_clear', DYING: 'dying', GAME_OVER: 'game_over', RIDDLE: 'riddle' };
+import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE } from './constants.js';
+import { loadAssets } from './engine/loader.js';
+import { createInput } from './engine/input.js';
+import { createCamera } from './engine/camera.js';
+import { applyComic } from './engine/halftone.js';
+import { createAudio } from './engine/audio.js';
+import { frameRect, createSprite } from './engine/sprite.js';
+import { createPlayer } from './game/player.js';
+import { createLevelRuntime } from './game/level.js';
+import { LEVELS } from './game/levels/levels.js';
+import { drawHud } from './game/hud.js';
+import { drawOverlay } from './game/scenes.js';
+import { computeScore, loadProgress, saveProgress } from './game/scoring.js';
 
 const canvas = document.getElementById('game');
-const cx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d');
 const audio = createAudio();
+const store = window.localStorage;
 
-const el = {
-  score: document.getElementById('score'),
-  high: document.getElementById('highscore'),
-  level: document.getElementById('level'),
-  lives: document.getElementById('lives'),
-  overlay: document.getElementById('overlay'),
-  title: document.getElementById('overlay-title'),
-  text: document.getElementById('overlay-text'),
-};
+const SCENE = { TITLE: 'title', LEVEL: 'level', PLAY: 'play', CLEAR: 'clear', GAMEOVER: 'gameover', VICTORY: 'victory' };
 
-const BETAAL_SETUP = [
-  { personality: 'chaser', corner: { col: 1, row: 1 }, color: COLORS.betaal[0], offset: { col: 0, row: 0 } },
-  { personality: 'ambusher', corner: { col: COLS - 2, row: 1 }, color: COLORS.betaal[1], offset: { col: -1, row: 0 } },
-  { personality: 'roamer', corner: { col: 1, row: ROWS - 2 }, color: COLORS.betaal[2], offset: { col: 1, row: 0 } },
-  { personality: 'shy', corner: { col: COLS - 2, row: ROWS - 2 }, color: COLORS.betaal[3], offset: { col: 0, row: -1 } },
-];
+let assets = null;
+let game = null;
+let anims = null;
 
-let game = newGame();
-
-function newGame() {
-  const maze = createMaze();
+function newGame(startLevel = 0) {
+  const prog = loadProgress(store);
   return {
-    state: STATE.READY,
-    maze,
-    bikram: createBikram(maze),
-    betaals: spawnBetaals(maze),
+    scene: SCENE.TITLE,
+    levelIndex: startLevel,
+    camera: createCamera(),
+    player: createPlayer(),
+    runtime: createLevelRuntime(LEVELS[startLevel]),
     score: 0,
-    high: Number(localStorage.getItem('bikram-high') || 0),
-    lives: LIVES,
-    level: 1,
-    tuning: levelTuning(1),
-    globalMode: 'scatter',
-    modeTimer: SCATTER_MS,
-    comboIndex: 0,
-    stateTimer: 0,
+    high: prog.high,
+    sceneTimer: 0,
   };
 }
 
-function spawnBetaals(maze) {
-  return BETAAL_SETUP.map((s) => createBetaal(maze, {
-    personality: s.personality,
-    spawn: { col: maze.shrine.col + s.offset.col, row: maze.shrine.row + s.offset.row },
-    corner: s.corner,
-    color: s.color,
-  }));
+function startLevel(index) {
+  game.levelIndex = index;
+  game.camera.reset();
+  game.player = createPlayer();
+  game.runtime = createLevelRuntime(LEVELS[index]);
+  game.scene = SCENE.LEVEL;
+  game.sceneTimer = 1100;
 }
 
-function startLevel(reset) {
-  game.bikram.resetTo(game.maze.bikramSpawn.col, game.maze.bikramSpawn.row);
-  game.betaals.forEach((b) => b.resetTo());
-  game.globalMode = 'scatter';
-  game.modeTimer = SCATTER_MS;
-  game.comboIndex = 0;
-  game.state = STATE.READY;
-  game.stateTimer = 1200;
-  if (reset) showOverlay('Bikram Betaal', 'Press Enter or tap to begin');
-  else hideOverlay();
-}
-
-// ---- Input ----
-const KEY_DIR = {
-  ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
-  w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right',
-};
-
-window.addEventListener('keydown', (e) => {
+function tap() {
   audio.resume();
-  if (KEY_DIR[e.key]) { game.bikram.setNextDir(KEY_DIR[e.key]); e.preventDefault(); }
-  if (e.key === 'Enter') handleConfirm();
-});
-
-document.querySelectorAll('.dpad__btn').forEach((btn) => {
-  btn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    audio.resume();
-    game.bikram.setNextDir(btn.dataset.dir);
-  });
-});
-
-canvas.parentElement.addEventListener('click', () => { audio.resume(); handleConfirm(); });
-
-function handleConfirm() {
-  if (game.state === STATE.READY) { game.state = STATE.PLAYING; hideOverlay(); }
-  else if (game.state === STATE.GAME_OVER) { game = newGame(); startLevel(true); }
-  else if (game.state === STATE.LEVEL_CLEAR) advanceLevel();
+  if (game.scene === SCENE.TITLE) { startLevel(game.levelIndex); return; }
+  if (game.scene === SCENE.LEVEL) { game.scene = SCENE.PLAY; return; }
+  if (game.scene === SCENE.CLEAR) {
+    const next = game.levelIndex + 1;
+    if (next >= LEVELS.length) { game.scene = SCENE.VICTORY; }
+    else startLevel(next);
+    return;
+  }
+  if (game.scene === SCENE.GAMEOVER) { game = newGame(0); startLevel(0); return; }
+  if (game.scene === SCENE.VICTORY) { game = newGame(0); startLevel(0); return; }
+  // PLAY: a tap is a jump request (play the blip only when a jump is actually available)
+  if (game.player.grounded || game.player.coyote > 0 || game.player.jumpsUsed < 2) audio.jump();
+  game.player.requestJump();
 }
 
-function advanceLevel() {
-  game.level += 1;
-  game.tuning = levelTuning(game.level);
-  game.maze = createMaze();
-  game.bikram = createBikram(game.maze);
-  game.betaals = spawnBetaals(game.maze);
-  startLevel(false);
-  game.state = STATE.PLAYING;
+function dash() {
+  if (game.scene === SCENE.PLAY && game.player.startDash()) { /* dash started */ }
 }
 
-// ---- Overlay helpers ----
-function showOverlay(title, text) { el.title.textContent = title; el.text.textContent = text; el.overlay.hidden = false; }
-function hideOverlay() { el.overlay.hidden = true; }
-
-// ---- Update ----
+// ---- update ----
 function update(dt) {
-  if (game.state === STATE.READY) {
-    game.stateTimer -= dt * 1000;
-    return;
-  }
-  if (game.state === STATE.DYING) {
-    game.stateTimer -= dt * 1000;
-    if (game.stateTimer <= 0) {
-      if (game.lives <= 0) { game.state = STATE.GAME_OVER; showOverlay('Betaal Wins', `Score ${game.score} — press Enter`); }
-      else startLevel(false), (game.state = STATE.PLAYING);
-    }
-    return;
-  }
-  if (game.state !== STATE.PLAYING) return;
+  if (game.scene === SCENE.LEVEL) { game.sceneTimer -= dt * 1000; if (game.sceneTimer <= 0) game.scene = SCENE.PLAY; return; }
+  if (game.scene !== SCENE.PLAY) return;
 
-  // Global scatter/chase toggle.
-  game.modeTimer -= dt * 1000;
-  if (game.modeTimer <= 0) {
-    game.globalMode = game.globalMode === 'scatter' ? 'chase' : 'scatter';
-    game.modeTimer = game.globalMode === 'scatter' ? SCATTER_MS : CHASE_MS;
-  }
+  const lvl = LEVELS[game.levelIndex];
+  game.camera.update(dt, lvl.speed);
+  game.player.update(dt, GROUND_TOP);
+  const { won, died } = game.runtime.update(dt, game.camera, game.player, audio);
 
-  const ev = game.bikram.update(dt);
-  if (ev.ate === 'dot') { game.score += SCORE.DOT; audio.dot(); }
-  if (ev.ate === 'lamp') {
-    game.score += SCORE.LAMP;
-    game.comboIndex = 0;
-    game.betaals.forEach((b) => b.frighten(game.tuning.frightMs));
-    audio.lamp();
-  }
+  game.score = computeScore({
+    distance: game.runtime.distance, spheres: game.runtime.spheres,
+    hearts: game.player.hearts, levelsCleared: game.levelIndex,
+  });
+  if (game.score > game.high) { game.high = game.score; saveProgress(store, { high: game.high, level: game.levelIndex + 1 }); }
 
-  const bt = game.bikram.tile();
-  const ctx = {
-    bikram: { col: bt.col, row: bt.row, dir: game.bikram.dir },
-    globalMode: game.globalMode,
-    betaalSpeed: game.tuning.betaalSpeed,
-  };
-  game.betaals.forEach((b) => b.update(dt, ctx));
-
-  // Collisions: same tile as Bikram.
-  for (const b of game.betaals) {
-    const t = b.tile();
-    if (t.col === bt.col && t.row === bt.row) {
-      if (b.mode === 'frightened') {
-        b.setEaten();
-        const pts = SCORE.BETAAL_BASE * 2 ** game.comboIndex;
-        game.comboIndex = Math.min(game.comboIndex + 1, 3);
-        game.score += pts;
-        audio.eatBetaal();
-      } else if (b.mode !== 'eaten') {
-        loseLife();
-        return;
-      }
-    }
-  }
-
-  if (game.maze.remainingPellets() === 0) {
-    game.state = STATE.LEVEL_CLEAR;
-    showOverlay('Maze Cleared', 'Press Enter for the next hunt');
-  }
-
-  if (game.score > game.high) { game.high = game.score; localStorage.setItem('bikram-high', String(game.high)); }
-}
-
-function loseLife() {
-  game.lives -= 1;
-  audio.death();
-  game.state = STATE.DYING;
-  game.stateTimer = 1000;
-}
-
-// ---- Render ----
-function drawMaze() {
-  const g = game.maze.grid;
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      const ch = g[r][c];
-      const x = c * TILE, y = r * TILE;
-      if (ch === '#') {
-        cx.fillStyle = COLORS.wall;
-        cx.fillRect(x + 1, y + 1, TILE - 2, TILE - 2);
-        cx.strokeStyle = COLORS.wallEdge;
-        cx.lineWidth = 1.5;
-        cx.strokeRect(x + 1.5, y + 1.5, TILE - 3, TILE - 3);
-      } else if (ch === '.') {
-        cx.fillStyle = COLORS.dot;
-        cx.beginPath(); cx.arc(x + TILE / 2, y + TILE / 2, 2.5, 0, Math.PI * 2); cx.fill();
-      } else if (ch === 'o') {
-        cx.fillStyle = COLORS.lamp;
-        cx.shadowColor = COLORS.lamp; cx.shadowBlur = 12;
-        cx.beginPath(); cx.arc(x + TILE / 2, y + TILE / 2, 6, 0, Math.PI * 2); cx.fill();
-        cx.shadowBlur = 0;
-      } else if (ch === 'S') {
-        cx.fillStyle = COLORS.shrine;
-        cx.beginPath(); cx.arc(x + TILE / 2, y + TILE / 2, 9, 0, Math.PI * 2); cx.fill();
-      }
-    }
+  if (won) {
+    game.scene = SCENE.CLEAR;
+    saveProgress(store, { high: game.high, level: Math.min(LEVELS.length, game.levelIndex + 2) });
+    audio.win();
+  } else if (died) {
+    // Correction B: removed the dead no-op line
+    game.scene = SCENE.GAMEOVER;
   }
 }
 
-function drawBikram() {
-  const b = game.bikram;
-  const mouth = 0.22 + 0.18 * Math.abs(Math.sin(Date.now() / 90));
-  const base = { up: -Math.PI / 2, down: Math.PI / 2, left: Math.PI, right: 0, none: 0 }[b.dir];
-  cx.fillStyle = COLORS.bikram;
-  cx.beginPath();
-  cx.moveTo(b.x, b.y);
-  cx.arc(b.x, b.y, TILE / 2 - 2, base + mouth, base + Math.PI * 2 - mouth);
-  cx.closePath();
-  cx.fill();
-  // simple crown nub
-  cx.fillStyle = '#fff3c4';
-  cx.fillRect(b.x - 3, b.y - TILE / 2 + 1, 6, 3);
+// ---- draw ----
+function drawParallax() {
+  const layers = [['bg_far', 0.2], ['bg_mid', 0.5], ['bg_near', 0.8]];
+  for (const [key, f] of layers) {
+    const a = assets.get(key);
+    const w = a.meta.fw;
+    let ox = -((game.camera.x * f) % w);
+    for (let x = ox; x < VW; x += w) ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, x, 0, w, VH);
+  }
 }
 
-function drawBetaal(b) {
-  const anyEnding = b.mode === 'frightened' && b.frightMs < 1500;
-  let color = b.color;
-  if (b.mode === 'frightened') color = anyEnding ? COLORS.frightenedEnding : COLORS.frightened;
-  if (b.mode === 'eaten') color = COLORS.eaten;
-  const r = TILE / 2 - 2;
-  cx.fillStyle = color;
-  cx.beginPath();
-  cx.arc(b.x, b.y - 1, r, Math.PI, 0);
-  cx.lineTo(b.x + r, b.y + r);
-  cx.lineTo(b.x - r, b.y + r);
-  cx.closePath();
-  cx.fill();
-  // eyes
-  cx.fillStyle = '#fff';
-  cx.beginPath(); cx.arc(b.x - 4, b.y - 2, 2.4, 0, Math.PI * 2); cx.arc(b.x + 4, b.y - 2, 2.4, 0, Math.PI * 2); cx.fill();
-  cx.fillStyle = '#102';
-  const d = DIRS[b.dir];
-  cx.beginPath(); cx.arc(b.x - 4 + d.x, b.y - 2 + d.y, 1.1, 0, Math.PI * 2); cx.arc(b.x + 4 + d.x, b.y - 2 + d.y, 1.1, 0, Math.PI * 2); cx.fill();
+function drawGround() {
+  const a = assets.get('ground_tile');
+  const pits = game.runtime.pits();
+  const startTile = Math.floor(game.camera.x / TILE);
+  for (let i = -1; i < VW / TILE + 2; i++) {
+    const tileWorldX = (startTile + i) * TILE;
+    const sx = tileWorldX - game.camera.x;
+    const inPit = pits.some((p) => tileWorldX + TILE > p.worldX && tileWorldX < p.worldX + p.w);
+    if (inPit) continue;
+    ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, sx, GROUND_TOP, TILE, TILE);
+    ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, sx, GROUND_TOP + TILE, TILE, TILE);
+  }
+}
+
+function drawPlayer() {
+  const p = game.player;
+  let key = 'bikram_run', frame = anims.run.update(0);
+  if (p.dash > 0) { key = 'bikram_dash'; frame = anims.dash.update(1 / 60); }
+  else if (p.invuln > 0 && Math.floor(p.invuln / 80) % 2 === 0) { key = 'bikram_hurt'; frame = 0; }
+  else if (!p.grounded) { key = 'bikram_jump'; frame = p.jumpsUsed >= 2 ? 1 : 0; }
+  else { frame = anims.run.update(1 / 60); }
+  const a = assets.get(key);
+  const fr = frameRect(a.meta, Math.min(frame, a.meta.frames - 1));
+  ctx.drawImage(a.img, fr.sx, fr.sy, fr.sw, fr.sh, PLAYER_X - 6, p.y - 8, p.w + 16, p.h + 14);
+}
+
+function drawGoal() {
+  const lvl = LEVELS[game.levelIndex];
+  const sx = lvl.goalX - game.camera.x;
+  if (sx > VW + 200 || sx < -200) return;
+  const a = assets.get('betaal_idle');
+  const fr = frameRect(a.meta, anims.betaal.update(1 / 60));
+  ctx.drawImage(a.img, fr.sx, fr.sy, fr.sw, fr.sh, sx, GROUND_TOP - a.meta.fh, a.meta.fw, a.meta.fh);
 }
 
 function render() {
-  cx.fillStyle = COLORS.maze;
-  cx.fillRect(0, 0, canvas.width, canvas.height);
-  drawMaze();
-  game.betaals.forEach(drawBetaal);
-  drawBikram();
-
-  el.score.textContent = game.score;
-  el.high.textContent = game.high;
-  el.level.textContent = game.level;
-  el.lives.textContent = '♛'.repeat(Math.max(0, game.lives));
+  ctx.clearRect(0, 0, VW, VH);
+  drawParallax();
+  drawGround();
+  if (game.scene === SCENE.PLAY || game.scene === SCENE.CLEAR) {
+    drawGoal();
+    game.runtime.draw(ctx, assets, game.camera);
+    drawPlayer();
+  }
+  applyComic(ctx, VW, VH);
+  if (game.scene === SCENE.PLAY) drawHud(ctx, assets, { hearts: game.player.hearts, energy: game.player.energy, score: game.score, level: game.levelIndex + 1 });
+  if (game.scene === SCENE.TITLE) drawOverlay(ctx, 'title', { high: game.high });
+  if (game.scene === SCENE.LEVEL) drawOverlay(ctx, 'level', { level: game.levelIndex + 1 });
+  if (game.scene === SCENE.CLEAR) drawOverlay(ctx, 'clear', { score: game.score });
+  if (game.scene === SCENE.GAMEOVER) drawOverlay(ctx, 'gameover', { score: game.score });
+  if (game.scene === SCENE.VICTORY) drawOverlay(ctx, 'victory', { score: game.score });
 }
 
-// ---- Loop ----
+// ---- loop ----
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
@@ -275,5 +167,25 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-startLevel(true);
-requestAnimationFrame(frame);
+function fitCanvas() {
+  // CSS handles visual scaling (height:100%); keep the backing store at virtual res.
+  canvas.width = VW; canvas.height = VH;
+}
+
+async function boot() {
+  fitCanvas();
+  assets = await loadAssets();
+  anims = {
+    run: createSprite(8, 12),
+    dash: createSprite(4, 14),
+    betaal: createSprite(4, 6),
+  };
+  game = newGame(0);
+  const input = createInput(canvas);
+  input.onJump(tap);
+  input.onDash(dash);
+  document.addEventListener('visibilitychange', () => { last = performance.now(); });
+  requestAnimationFrame(frame);
+}
+
+boot();

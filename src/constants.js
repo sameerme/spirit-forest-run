@@ -1,42 +1,47 @@
-export const TILE = 24;
-export const COLS = 21;
-export const ROWS = 23;
+export const VW = 540;
+export const VH = 960;
+export const TILE = 60;
+export const GROUND_TOP = VH - TILE * 2; // 840
 
-// Movement speeds in tiles per second.
-export const SPEED = {
-  BIKRAM: 5.2,
-  BETAAL: 4.6,
-  FRIGHT: 2.8,
-  EATEN: 9.0,
-};
+export const GRAVITY = 2600;       // px/s^2
+export const JUMP_V = 980;         // px/s upward impulse
+export const DOUBLE_JUMP_V = 880;  // px/s upward impulse (2nd jump)
 
-export const FRIGHT_MS = 7000;
-export const SCATTER_MS = 7000;
-export const CHASE_MS = 20000;
+export const PLAYER_X = Math.round(VW * 0.28); // fixed screen x (151)
+export const PLAYER_W = 70;
+export const PLAYER_H = 96;
 
-export const SCORE = { DOT: 10, LAMP: 50, BETAAL_BASE: 200 };
-export const LIVES = 3;
+export const COYOTE_MS = 90;
+export const JUMP_BUFFER_MS = 120;
+export const INVULN_MS = 1000;
+export const DASH_MS = 2000;
+
+export const ENERGY_MAX = 100;
+export const ENERGY_PER_SPHERE = 34;
+export const SPHERE_SCORE = 50;
+export const CLEAR_BONUS = 500;
+export const HEART_BONUS = 200;
+export const START_HEARTS = 3;
 
 export const COLORS = {
-  bg: '#0b0a1f',
-  maze: '#120f33',
-  wall: '#2a2466',
-  wallEdge: '#5a4fd0',
-  dot: '#e8d9a0',
-  lamp: '#ffd24a',
+  ink: '#141019',
+  sky1: '#241a3a',
+  sky2: '#0e0a1c',
+  moon: '#f4ecd0',
+  forestFar: '#2a2350',
+  forestMid: '#1c2c2a',
+  forestNear: '#10201c',
+  ground: '#3a2d22',
+  groundTop: '#5a4a32',
   bikram: '#ffce3a',
-  betaal: ['#ff4d6d', '#36d1dc', '#b06dff', '#74e08b'],
-  frightened: '#9fb4ff',
-  frightenedEnding: '#f2f4ff',
-  eaten: '#7c86b8',
+  bikramInk: '#7a4a12',
+  betaal: '#b06dff',
+  snake: '#74e08b',
+  bat: '#ff4d6d',
+  spirit: '#9fe8ff',
+  sphere: '#ffd24a',
+  heart: '#ff4d6d',
+  energy: '#36d1dc',
   text: '#f5f3ff',
-  shrine: '#3b2f6e',
+  halftone: 'rgba(10,8,20,0.16)',
 };
-
-// Per-level scaling: faster Betaals, shorter fright window.
-export function levelTuning(level) {
-  return {
-    betaalSpeed: SPEED.BETAAL + (level - 1) * 0.3,
-    frightMs: Math.max(2000, FRIGHT_MS - (level - 1) * 800),
-  };
-}

@@ -1,23 +1,21 @@
-# Bikram Betaal: The Hunt
+# Spirit Forest Run — Bikram & the Betaal
 
-A Pac-Man-style arcade game themed on the Vikram-Betaal folklore. King Bikram
-hunts the Betaal spirits through a maze. Touching a Betaal normally costs a
-life — but eat a **magic lamp** and the Betaals turn vulnerable, letting Bikram
-devour them for big points.
+A mobile auto-runner platformer in an 80s comic/halftone style. Bikram runs
+through a haunted forest, tap to jump and double-tap to double-jump past snakes,
+bats and spirits, grab energy spheres, and rescue Betaal at the end of each of 5
+levels. No build step.
 
 ## Play
-
 ```bash
-python3 -m http.server 8000
-# open http://localhost:8000
+python3 -m http.server 8000   # then open http://localhost:8000
 ```
+Tap = jump · double-tap = double jump · fill the energy meter for a Spirit Dash.
 
-Or just open `index.html` in a browser.
-
-Controls: Arrow keys / WASD, or the on-screen D-pad on touch devices.
+## Art
+Drop PNGs named per `assets/manifest.json` into `assets/`. Until then the game
+renders programmatic halftone placeholders.
 
 ## Test
-
 ```bash
 node --test
 ```
