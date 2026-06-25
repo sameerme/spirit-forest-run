@@ -6,7 +6,7 @@ import { createMaze } from './maze.js';
 import { createBikram } from './player.js';
 import { createBetaal } from './betaal.js';
 import { createAudio } from './audio.js';
-import { tileToPixelCenter, DIRS } from './pathing.js';
+import { DIRS } from './pathing.js';
 
 const STATE = { READY: 'ready', PLAYING: 'playing', LEVEL_CLEAR: 'level_clear', DYING: 'dying', GAME_OVER: 'game_over', RIDDLE: 'riddle' };
 
@@ -86,7 +86,11 @@ window.addEventListener('keydown', (e) => {
 });
 
 document.querySelectorAll('.dpad__btn').forEach((btn) => {
-  btn.addEventListener('click', () => { audio.resume(); game.bikram.setNextDir(btn.dataset.dir); });
+  btn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    audio.resume();
+    game.bikram.setNextDir(btn.dataset.dir);
+  });
 });
 
 canvas.parentElement.addEventListener('click', () => { audio.resume(); handleConfirm(); });
