@@ -38,3 +38,13 @@ html { -webkit-tap-highlight-color: transparent; }
   padding: 8px 14px; border-radius: 8px; z-index: 11; font-size: 0.85rem; white-space: nowrap;
 }
 .toast[hidden] { display: none; }
+
+/* ---- Music mute toggle (bottom-right) ---- */
+.mute-btn {
+  position: absolute; right: 10px; bottom: 10px;
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 2px solid rgba(245,243,255,0.4); background: rgba(7,5,15,0.55);
+  color: #fff; font-size: 1.2rem; line-height: 1; cursor: pointer; z-index: 12;
+  display: grid; place-items: center; -webkit-tap-highlight-color: transparent;
+}
+.mute-btn:active { transform: scale(0.92); }
