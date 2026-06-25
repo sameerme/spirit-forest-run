@@ -142,6 +142,10 @@ function drawGoal() {
 function render() {
   ctx.clearRect(0, 0, VW, VH);
   drawParallax();
+  // Dark scrim pushes the dense forest art back so foreground (ground, player,
+  // enemies) stays readable.
+  ctx.fillStyle = 'rgba(7, 5, 15, 0.5)';
+  ctx.fillRect(0, 0, VW, VH);
   drawGround();
   if (game.scene === SCENE.PLAY || game.scene === SCENE.CLEAR) {
     drawGoal();
