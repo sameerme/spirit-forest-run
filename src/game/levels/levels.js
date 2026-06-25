@@ -1,4 +1,4 @@
-import { GROUND_TOP } from '../../constants.js';
+import { GROUND_TOP, TILE } from '../../constants.js';
 import { createSnake, createBat, createSpirit, createSphere, createPit, createPlatform } from '../entities.js';
 import level1 from './level1.js';
 import level2 from './level2.js';
@@ -35,6 +35,7 @@ export function buildLevel(def) {
   let x = 900; // clear opening runway
 
   while (x < goalX - 700) {
+    let placedRight = x;
     const roll = rng();
     if (roll < 0.28) {
       entities.push(strip(createSnake(x)));
@@ -42,24 +43,26 @@ export function buildLevel(def) {
       const n = 1 + Math.floor(rng() * def.maxBats);
       for (let k = 0; k < n; k++) {
         const y = rng() < 0.5 ? BAT_LOW : BAT_HIGH;
-        entities.push(strip(createBat(x + k * 120, y)));
+        entities.push(strip(createBat(x + k * 130, y)));
       }
+      placedRight = x + (n - 1) * 130;
     } else if (roll < 0.68 && def.spirits) {
       entities.push(strip(createSpirit(x, SPIRIT_BASE, 90, 0.8 + rng() * 0.5)));
     } else if (roll < 0.86) {
       const tiles = 1 + Math.floor(rng() * def.maxPit);
       entities.push(strip(createPit(x, tiles)));
+      placedRight = x + tiles * TILE;
       if (tiles >= 2 && rng() < 0.5) entities.push(strip(createPlatform(x + tiles * 30, GROUND_TOP - 150)));
     } else {
-      entities.push(strip(createSnake(x))); // fallback obstacle keeps spacing honest
+      entities.push(strip(createSnake(x)));
     }
 
     // sprinkle a sphere in the gap after this obstacle
     if (rng() < def.sphereChance) {
-      entities.push(strip(createSphere(x + def.minGap * 0.55, rng() < 0.5 ? SPHERE_HI : SPHERE_LO)));
+      entities.push(strip(createSphere(placedRight + def.minGap * 0.45, rng() < 0.5 ? SPHERE_HI : SPHERE_LO)));
     }
 
-    x += def.minGap + Math.floor(rng() * 160);
+    x = placedRight + def.minGap + Math.floor(rng() * 160);
   }
 
   entities.sort((a, b) => a.worldX - b.worldX);

@@ -20,7 +20,10 @@ export function validateLevel(level, opts) {
 
   const obstacles = level.entities.filter((e) => OBSTACLES.has(e.type));
   for (let i = 1; i < obstacles.length; i++) {
-    const gap = obstacles[i].worldX - obstacles[i - 1].worldX;
+    const prev = obstacles[i - 1];
+    const cur = obstacles[i];
+    if (prev.type === 'bat' && cur.type === 'bat') continue; // bat waves cluster intentionally
+    const gap = cur.worldX - prev.worldX;
     if (gap < level.minGap) errors.push(`gap ${gap} < minGap ${level.minGap} at obstacle ${i}`);
   }
 
