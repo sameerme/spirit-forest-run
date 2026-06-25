@@ -58,7 +58,8 @@ function tap() {
   }
   if (game.scene === SCENE.GAMEOVER) { game = newGame(0); startLevel(0); return; }
   if (game.scene === SCENE.VICTORY) { game = newGame(0); startLevel(0); return; }
-  // PLAY: a tap is a jump request
+  // PLAY: a tap is a jump request (play the blip only when a jump is actually available)
+  if (game.player.grounded || game.player.coyote > 0 || game.player.jumpsUsed < 2) audio.jump();
   game.player.requestJump();
 }
 
