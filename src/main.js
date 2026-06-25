@@ -16,8 +16,20 @@ import { computeScore, loadProgress, saveProgress } from './game/scoring.js';
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const shareBtn = document.getElementById('shareBtn');
+const dlBtn = document.getElementById('dlBtn');
 const muteBtn = document.getElementById('muteBtn');
 const toastEl = document.getElementById('toast');
+
+// Tarang+ store link, chosen by platform (App Store on iOS, Play Store elsewhere).
+const TARANG_IOS = 'https://apps.apple.com/us/app/tarangplus/id1478384536';
+const TARANG_ANDROID = 'https://play.google.com/store/apps/details?id=com.otl.tarangplus&hl=en_IN';
+function tarangUrl() {
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return isIOS ? TARANG_IOS : TARANG_ANDROID;
+}
+dlBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+dlBtn.addEventListener('click', (e) => { e.stopPropagation(); window.open(tarangUrl(), '_blank', 'noopener'); });
 const audio = createAudio();
 const music = createMusic();
 const store = window.localStorage;
@@ -289,10 +301,11 @@ function render() {
   if (game.scene === SCENE.CLEAR) drawOverlay(ctx, 'clear', { score: game.score });
   if (game.scene === SCENE.GAMEOVER) drawOverlay(ctx, 'gameover', { score: game.score });
   if (game.scene === SCENE.VICTORY) drawOverlay(ctx, 'victory', { score: game.score });
-  // Show the Share button on the end screens only.
-  const showShare = game.scene === SCENE.GAMEOVER || game.scene === SCENE.VICTORY;
-  if (shareBtn.hidden === showShare) shareBtn.hidden = !showShare;
-  if (!showShare && !toastEl.hidden) toastEl.hidden = true;
+  // Show the Share + Download buttons on the end screens only.
+  const showEnd = game.scene === SCENE.GAMEOVER || game.scene === SCENE.VICTORY;
+  if (shareBtn.hidden === showEnd) shareBtn.hidden = !showEnd;
+  if (dlBtn.hidden === showEnd) dlBtn.hidden = !showEnd;
+  if (!showEnd && !toastEl.hidden) toastEl.hidden = true;
 }
 
 // ---- loop ----
