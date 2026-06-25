@@ -1,4 +1,4 @@
-import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, PROMO, BANNER } from './constants.js';
+import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, PROMO, PROMO_FONT, BANNER } from './constants.js';
 import { loadAssets } from './engine/loader.js';
 import { createInput } from './engine/input.js';
 import { createCamera } from './engine/camera.js';
@@ -112,6 +112,16 @@ function drawParallax() {
   }
 }
 
+// Set ctx.font to the promo font at the largest size that fits maxW, then return.
+function fitFont(text, maxW, baseSize, weight) {
+  let size = baseSize;
+  ctx.font = `${weight} ${size}px ${PROMO_FONT}`;
+  while (size > 12 && ctx.measureText(text).width > maxW) {
+    size -= 1;
+    ctx.font = `${weight} ${size}px ${PROMO_FONT}`;
+  }
+}
+
 // Recurring promo billboard in the canopy band (decorative, no collision).
 function drawBanner(x) {
   const { w, h, y } = BANNER;
@@ -135,11 +145,11 @@ function drawBanner(x) {
   ctx.fillStyle = COLORS.bikram; ctx.beginPath(); ctx.roundRect(x + 16, y - 12, 96, 26, 8); ctx.fill();
   ctx.fillStyle = COLORS.ink; ctx.font = '18px Bangers, sans-serif'; ctx.textAlign = 'center';
   ctx.fillText('PROMO', x + 64, y + 7);
-  // content
-  ctx.fillStyle = COLORS.text; ctx.font = '46px Bangers, sans-serif';
-  ctx.fillText(PROMO.title, x + w / 2, y + h * 0.5);
-  ctx.fillStyle = COLORS.energy; ctx.font = '27px Bangers, sans-serif';
-  ctx.fillText(PROMO.date, x + w / 2, y + h * 0.82);
+  // content (Odia script — auto-fit so long lines stay inside the panel)
+  fitFont(PROMO.title, w - 44, 44, 800);
+  ctx.fillStyle = COLORS.text; ctx.fillText(PROMO.title, x + w / 2, y + h * 0.48);
+  fitFont(PROMO.date, w - 40, 28, 600);
+  ctx.fillStyle = COLORS.energy; ctx.fillText(PROMO.date, x + w / 2, y + h * 0.82);
   ctx.restore();
 }
 
@@ -230,6 +240,18 @@ function fitCanvas() {
 
 async function boot() {
   fitCanvas();
+  // Preload the Odia promo font so the banner renders correctly from the start.
+  try {
+    if (document.fonts && document.fonts.load) {
+      await Promise.race([
+        Promise.all([
+          document.fonts.load('800 44px "Baloo Bhaina 2"', PROMO.title),
+          document.fonts.load('600 28px "Baloo Bhaina 2"', PROMO.date),
+        ]),
+        new Promise((r) => setTimeout(r, 2500)),
+      ]);
+    }
+  } catch { /* fall back to system Odia font */ }
   assets = await loadAssets();
   anims = {
     run: createSprite(8, 12),
