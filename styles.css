@@ -1,0 +1,20 @@
+:root { --ink: #0c0916; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #07050f; overflow: hidden; }
+body {
+  display: grid; place-items: center;
+  font-family: "Bangers", "Trebuchet MS", system-ui, sans-serif;
+  -webkit-user-select: none; user-select: none;
+  touch-action: none; overscroll-behavior: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+#stage { position: relative; width: 100%; height: 100%; display: grid; place-items: center; }
+#game {
+  display: block;
+  width: auto; height: 100%;
+  max-width: 100%;
+  image-rendering: optimizeQuality;
+  touch-action: none;
+  background: #07050f;
+}
+@media (orientation: landscape) { #game { width: auto; height: 100%; } }

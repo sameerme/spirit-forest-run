@@ -1,0 +1,6 @@
+{
+  "name": "spirit-forest-run",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": { "test": "node --test", "serve": "python3 -m http.server 8000" }
+}
