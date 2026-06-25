@@ -48,3 +48,17 @@ html { -webkit-tap-highlight-color: transparent; }
   display: grid; place-items: center; -webkit-tap-highlight-color: transparent;
 }
 .mute-btn:active { transform: scale(0.92); }
+
+/* ---- Download Tarang+ CTA (shown on end screens, above Share) ---- */
+.dl-btn {
+  position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%);
+  font-family: "Bangers", system-ui, sans-serif; font-size: 1.5rem; letter-spacing: 0.04em;
+  color: #fff; background: #e23744; border: 3px solid #141019; border-radius: 12px;
+  padding: 10px 24px; cursor: pointer; z-index: 10; white-space: nowrap;
+  box-shadow: 0 4px 0 #7a1620; -webkit-tap-highlight-color: transparent;
+}
+.dl-btn[hidden] { display: none; }
+.dl-btn:active { transform: translateX(-50%) translateY(2px); box-shadow: 0 2px 0 #7a1620; }
+/* nudge share + toast so the two CTAs stack cleanly */
+.share-btn { bottom: 11%; }
+.toast { bottom: 32%; }
