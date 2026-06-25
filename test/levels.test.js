@@ -10,12 +10,20 @@ test('mulberry32 is deterministic for a seed', () => {
   assert.equal(a(), b());
 });
 
-test('there are 5 levels with monotonic difficulty', () => {
-  assert.equal(LEVELS.length, 5);
+test('there are 15 levels with monotonic difficulty', () => {
+  assert.equal(LEVELS.length, 15);
   for (let i = 1; i < LEVELS.length; i++) {
     assert.ok(LEVELS[i].speed >= LEVELS[i - 1].speed, 'speed non-decreasing');
     assert.ok(LEVELS[i].minGap <= LEVELS[i - 1].minGap, 'minGap non-increasing');
+    assert.ok(LEVELS[i].maxBats >= LEVELS[i - 1].maxBats, 'maxBats non-decreasing');
+    assert.ok(LEVELS[i].maxPit >= LEVELS[i - 1].maxPit, 'maxPit non-decreasing');
   }
+});
+
+test('vertical movement ramps in on later levels (bats bob, snakes rear)', () => {
+  assert.equal(LEVELS[0].batAmp, 0, 'no bat movement on level 1');
+  assert.ok(LEVELS[14].batAmp > 0, 'bats bob by level 15');
+  assert.ok(LEVELS[14].snakeAmp > 0, 'snakes rear by level 15');
 });
 
 test('every built level validates (gaps + jumpable pits) and has a goal', () => {
@@ -33,7 +41,7 @@ test('buildLevel is deterministic (same def -> same entities)', () => {
   assert.deepEqual(a.entities, b.entities);
 });
 
-test('level 1 has no spirits, level 5 does', () => {
+test('level 1 has no spirits; spirits appear on later levels', () => {
   assert.equal(LEVELS[0].entities.some((e) => e.type === 'spirit'), false);
-  assert.equal(LEVELS[4].entities.some((e) => e.type === 'spirit'), true);
+  assert.ok(LEVELS.some((l) => l.entities.some((e) => e.type === 'spirit')), 'some level has spirits');
 });
