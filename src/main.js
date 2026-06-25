@@ -156,11 +156,11 @@ function drawBanner(x) {
 function drawBanners() {
   const { w, spacing, parallax } = BANNER;
   const camX = game.camera.x * parallax;
-  const first = Math.floor((camX - w) / spacing);
-  const last = Math.floor((camX + VW) / spacing);
+  const start = (VW - w) / 2; // first banner centred on the opening screen (frame 1)
+  const first = Math.max(0, Math.floor((camX - w - start) / spacing));
+  const last = Math.floor((camX + VW - start) / spacing);
   for (let k = first; k <= last; k++) {
-    const worldX = k * spacing + (spacing - w) / 2; // centre each banner in its slot
-    if (worldX < 700) continue; // keep the opening runway clear
+    const worldX = start + k * spacing; // banner #0 at the start, then every `spacing` px
     drawBanner(worldX - camX);
   }
 }
