@@ -32,6 +32,8 @@ function newGame(startLevel = 0) {
     player: createPlayer(),
     runtime: createLevelRuntime(LEVELS[startLevel]),
     score: 0,
+    distance: 0,      // cumulative px travelled across all levels (drives the score)
+    spheresTotal: 0,  // spheres banked from completed levels
     high: prog.high,
     sceneTimer: 0,
   };
@@ -51,6 +53,7 @@ function tap() {
   if (game.scene === SCENE.TITLE) { startLevel(game.levelIndex); return; }
   if (game.scene === SCENE.LEVEL) { game.scene = SCENE.PLAY; return; }
   if (game.scene === SCENE.CLEAR) {
+    game.spheresTotal += game.runtime.spheres; // bank this level's spheres before the runtime is replaced
     const next = game.levelIndex + 1;
     if (next >= LEVELS.length) { game.scene = SCENE.VICTORY; }
     else startLevel(next);
@@ -74,13 +77,17 @@ function update(dt) {
 
   const lvl = LEVELS[game.levelIndex];
   game.camera.update(dt, lvl.speed);
+  game.distance += lvl.speed * dt; // accumulate progress across all levels (never resets mid-run)
   const floor = game.runtime.floorFor(game.camera, game.player);
   game.player.update(dt, floor);
   const { won, died } = game.runtime.update(dt, game.camera, game.player, audio);
 
+  // Score starts at 0 and only ever climbs: distance progressed + spheres collected.
   game.score = computeScore({
-    distance: game.runtime.distance, spheres: game.runtime.spheres,
-    hearts: game.player.hearts, levelsCleared: game.levelIndex,
+    distance: game.distance,
+    spheres: game.spheresTotal + game.runtime.spheres,
+    hearts: 0,
+    levelsCleared: 0,
   });
   if (game.score > game.high) { game.high = game.score; saveProgress(store, { high: game.high, level: game.levelIndex + 1 }); }
 
