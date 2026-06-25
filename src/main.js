@@ -4,6 +4,7 @@ import { createInput } from './engine/input.js';
 import { createCamera } from './engine/camera.js';
 import { applyComic } from './engine/halftone.js';
 import { createAudio } from './engine/audio.js';
+import { createMusic } from './engine/music.js';
 import { frameRect, createSprite } from './engine/sprite.js';
 import { createPlayer } from './game/player.js';
 import { createLevelRuntime } from './game/level.js';
@@ -15,9 +16,22 @@ import { computeScore, loadProgress, saveProgress } from './game/scoring.js';
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const shareBtn = document.getElementById('shareBtn');
+const muteBtn = document.getElementById('muteBtn');
 const toastEl = document.getElementById('toast');
 const audio = createAudio();
+const music = createMusic();
 const store = window.localStorage;
+
+// Restore the music on/off preference and wire the mute toggle.
+if (store.getItem('sfr-music') === '0') music.setEnabled(false);
+muteBtn.textContent = music.isEnabled() ? '🔊' : '🔇';
+muteBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+muteBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const on = music.toggle();
+  store.setItem('sfr-music', on ? '1' : '0');
+  muteBtn.textContent = on ? '🔊' : '🔇';
+});
 
 const SHARE_URL = 'https://sameerme.github.io/spirit-forest-run/';
 let toastTimer = null;
@@ -74,6 +88,7 @@ function startLevel(index) {
 
 function tap() {
   audio.resume();
+  music.start(); // begins on first user gesture (idempotent; respects mute pref)
   if (game.scene === SCENE.TITLE) { startLevel(game.levelIndex); return; }
   if (game.scene === SCENE.LEVEL) { game.scene = SCENE.PLAY; return; }
   if (game.scene === SCENE.CLEAR) {
