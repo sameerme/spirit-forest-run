@@ -1,11 +1,14 @@
 import { createSprite } from '../engine/sprite.js';
 import { TILE, GROUND_TOP } from '../constants.js';
 
-export function createSnake(worldX) {
-  return { type: 'snake', worldX, y: GROUND_TOP - 50, w: 96, h: 50, anim: createSprite(4, 8) };
+export function createSnake(worldX, amp = 0, freq = 1) {
+  const y = GROUND_TOP - 50;
+  // amp > 0: rears up and down from the ground (anchor 'ground').
+  return { type: 'snake', worldX, y, baseY: y, amp, freq, t: 0, anchor: 'ground', w: 96, h: 50, anim: createSprite(4, 8) };
 }
-export function createBat(worldX, y) {
-  return { type: 'bat', worldX, y, w: 70, h: 46, anim: createSprite(4, 10) };
+export function createBat(worldX, y, amp = 0, freq = 1) {
+  // amp > 0: bobs up and down around its lane while flying.
+  return { type: 'bat', worldX, y, baseY: y, amp, freq, t: 0, w: 70, h: 46, anim: createSprite(4, 10) };
 }
 export function createSpirit(worldX, baseY, amp = 90, freq = 0.9) {
   return { type: 'spirit', worldX, y: baseY, baseY, amp, freq, t: 0, w: 84, h: 104, anim: createSprite(4, 6) };
@@ -27,8 +30,14 @@ export function worldBox(e) {
 
 export function updateEntity(e, dt) {
   if (e.anim) e.anim.update(dt);
-  if (e.type === 'spirit') {
+  if (e.amp) {
     e.t += dt;
-    e.y = e.baseY + Math.sin(e.t * e.freq * Math.PI * 2) * e.amp;
+    if (e.anchor === 'ground') {
+      // rear up from the ground and back, never dipping below it
+      const rise = (1 - Math.cos(e.t * e.freq * Math.PI * 2)) / 2; // 0..1
+      e.y = e.baseY - rise * e.amp;
+    } else {
+      e.y = e.baseY + Math.sin(e.t * e.freq * Math.PI * 2) * e.amp;
+    }
   }
 }
