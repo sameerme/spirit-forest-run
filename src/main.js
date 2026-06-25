@@ -145,11 +145,16 @@ function drawBanner(x) {
   ctx.fillStyle = COLORS.bikram; ctx.beginPath(); ctx.roundRect(x + 16, y - 12, 96, 26, 8); ctx.fill();
   ctx.fillStyle = COLORS.ink; ctx.font = '18px Bangers, sans-serif'; ctx.textAlign = 'center';
   ctx.fillText('PROMO', x + 64, y + 7);
-  // content (Odia script — auto-fit so long lines stay inside the panel)
-  fitFont(PROMO.title, w - 44, 44, 800);
-  ctx.fillStyle = COLORS.text; ctx.fillText(PROMO.title, x + w / 2, y + h * 0.48);
-  fitFont(PROMO.date, w - 40, 28, 600);
-  ctx.fillStyle = COLORS.energy; ctx.fillText(PROMO.date, x + w / 2, y + h * 0.82);
+  // content (Odia) — clip to the panel so text can never spill outside the box,
+  // and auto-fit to a tight target with margin (mobile web-fonts render wider
+  // than they measure on some browsers).
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(x + 14, y, w - 28, h, 12); ctx.clip();
+  fitFont(PROMO.title, w - 56, 40, 800);
+  ctx.fillStyle = COLORS.text; ctx.fillText(PROMO.title, x + w / 2, y + h * 0.46);
+  fitFont(PROMO.date, w - 52, 26, 600);
+  ctx.fillStyle = COLORS.energy; ctx.fillText(PROMO.date, x + w / 2, y + h * 0.80);
+  ctx.restore();
   ctx.restore();
 }
 
