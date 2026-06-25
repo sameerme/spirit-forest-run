@@ -21,3 +21,20 @@ body {
 #game { box-shadow: 0 0 40px rgba(0,0,0,0.6); }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
 html { -webkit-tap-highlight-color: transparent; }
+
+/* ---- Share button + toast (shown on game over / victory) ---- */
+.share-btn {
+  position: absolute; left: 50%; bottom: 13%; transform: translateX(-50%);
+  font-family: "Bangers", system-ui, sans-serif; font-size: 1.5rem; letter-spacing: 0.04em;
+  color: #141019; background: #ffce3a; border: 3px solid #141019; border-radius: 12px;
+  padding: 10px 24px; cursor: pointer; z-index: 10; white-space: nowrap;
+  box-shadow: 0 4px 0 #7a4a12; -webkit-tap-highlight-color: transparent;
+}
+.share-btn[hidden] { display: none; }
+.share-btn:active { transform: translateX(-50%) translateY(2px); box-shadow: 0 2px 0 #7a4a12; }
+.toast {
+  position: absolute; left: 50%; bottom: 24%; transform: translateX(-50%);
+  background: rgba(7,5,15,0.92); color: #f5f3ff; font-family: system-ui, sans-serif;
+  padding: 8px 14px; border-radius: 8px; z-index: 11; font-size: 0.85rem; white-space: nowrap;
+}
+.toast[hidden] { display: none; }

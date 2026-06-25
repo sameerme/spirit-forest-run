@@ -14,8 +14,32 @@ import { computeScore, loadProgress, saveProgress } from './game/scoring.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+const shareBtn = document.getElementById('shareBtn');
+const toastEl = document.getElementById('toast');
 const audio = createAudio();
 const store = window.localStorage;
+
+const SHARE_URL = 'https://sameerme.github.io/spirit-forest-run/';
+let toastTimer = null;
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toastEl.hidden = true; }, 2200);
+}
+function shareGame() {
+  const text = `I scored ${game.score} in Spirit Forest Run (ବିକ୍ରମ ବେତାଳ)! Can you beat me?`;
+  if (navigator.share) {
+    navigator.share({ title: 'Spirit Forest Run', text, url: SHARE_URL }).catch(() => {});
+  } else if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(`${text} ${SHARE_URL}`).then(() => showToast('Link copied!')).catch(() => showToast(SHARE_URL));
+  } else {
+    showToast(SHARE_URL);
+  }
+}
+// keep the share tap from also restarting the game (canvas-parent listens for clicks)
+shareBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+shareBtn.addEventListener('click', (e) => { e.stopPropagation(); shareGame(); });
 
 const SCENE = { TITLE: 'title', LEVEL: 'level', PLAY: 'play', CLEAR: 'clear', GAMEOVER: 'gameover', VICTORY: 'victory' };
 
@@ -250,6 +274,10 @@ function render() {
   if (game.scene === SCENE.CLEAR) drawOverlay(ctx, 'clear', { score: game.score });
   if (game.scene === SCENE.GAMEOVER) drawOverlay(ctx, 'gameover', { score: game.score });
   if (game.scene === SCENE.VICTORY) drawOverlay(ctx, 'victory', { score: game.score });
+  // Show the Share button on the end screens only.
+  const showShare = game.scene === SCENE.GAMEOVER || game.scene === SCENE.VICTORY;
+  if (shareBtn.hidden === showShare) shareBtn.hidden = !showShare;
+  if (!showShare && !toastEl.hidden) toastEl.hidden = true;
 }
 
 // ---- loop ----
