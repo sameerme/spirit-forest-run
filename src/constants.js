@@ -48,6 +48,8 @@ export const COLORS = {
 
 // ---- Promo banner (decorative, recurring billboard in the forest canopy) ----
 // EDIT THIS to change the promo. No image needed — text is drawn at runtime.
-export const PROMO = { title: 'BIKRAM BETAAL', date: 'NEW SEASON · COMING SOON' };
+export const PROMO = { title: 'ବିକ୍ରମ ବେତାଳ', date: 'କେବଳ ତରଙ୍ଗ+ ରେ ଜୁଲାଇ 3ରୁ' };
+// Font used for the promo text (must cover Odia script).
+export const PROMO_FONT = '"Baloo Bhaina 2", "Noto Sans Oriya", sans-serif';
 // Banner geometry (virtual px). Sits in the top canopy band, clear of gameplay.
 export const BANNER = { w: 480, h: 150, y: 110, spacing: 1100, parallax: 1.0 };
