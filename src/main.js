@@ -74,7 +74,8 @@ function update(dt) {
 
   const lvl = LEVELS[game.levelIndex];
   game.camera.update(dt, lvl.speed);
-  game.player.update(dt, GROUND_TOP);
+  const floor = game.runtime.floorFor(game.camera, game.player);
+  game.player.update(dt, floor);
   const { won, died } = game.runtime.update(dt, game.camera, game.player, audio);
 
   game.score = computeScore({
