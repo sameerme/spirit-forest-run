@@ -1,6 +1,5 @@
 import { SPEED, TILE, COLS } from './constants.js';
 import { DIRS, tileToPixelCenter, pixelToTile, isCentered, opposite } from './pathing.js';
-import { canMove } from './maze.js';
 import { targetTile, chooseDirection } from './ai.js';
 
 const FIELD_W = COLS * TILE;
@@ -20,9 +19,10 @@ export function createBetaal(maze, { personality, spawn, corner, color }) {
     tile() { return pixelToTile(this.x, this.y); },
     frighten(ms) {
       if (this.mode === 'eaten') return;
+      const wasFrightened = this.mode === 'frightened';
       this.mode = 'frightened';
       this.frightMs = ms;
-      this.dir = opposite(this.dir);
+      if (!wasFrightened) this.dir = opposite(this.dir);
     },
     setEaten() { this.mode = 'eaten'; },
     resetTo() {
@@ -51,7 +51,7 @@ export function createBetaal(maze, { personality, spawn, corner, color }) {
           target = maze.shrine;
         } else if (this.mode === 'frightened') {
           random = true;
-          target = this.corner;
+          target = { col, row };
         } else if (this.mode === 'scatter') {
           target = this.corner;
         } else if (this.personality === 'roamer') {

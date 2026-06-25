@@ -64,3 +64,24 @@ test('update moves the betaal', () => {
   b.update(0.05, makeCtx(m));
   assert.ok(b.x !== x0 || b.y !== y0, 'betaal should move');
 });
+
+test('re-frightening an already-frightened betaal does not reverse again', () => {
+  const m = createMaze();
+  const b = createBetaal(m, { personality: 'chaser', spawn: { col: 1, row: 3 }, corner: { col: 1, row: 1 }, color: '#fff' });
+  b.dir = 'down';
+  b.frighten(7000);           // -> up
+  assert.equal(b.dir, 'up');
+  b.frighten(7000);           // already frightened: must stay 'up'
+  assert.equal(b.dir, 'up');
+});
+
+test('resetTo restores spawn position, scatter mode, and up direction', () => {
+  const m = createMaze();
+  const b = createBetaal(m, { personality: 'chaser', spawn: { col: 1, row: 3 }, corner: { col: 1, row: 1 }, color: '#fff' });
+  b.setEaten();
+  b.x += 100; b.y += 100;
+  b.resetTo();
+  assert.deepEqual(b.tile(), { col: 1, row: 3 });
+  assert.equal(b.mode, 'scatter');
+  assert.equal(b.dir, 'up');
+});
