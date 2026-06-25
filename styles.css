@@ -28,11 +28,23 @@ body {
   justify-content: space-between;
   gap: var(--space-md);
   font-variant-numeric: tabular-nums;
+  padding: 0.4rem 0.8rem;
+  background: rgba(18, 15, 51, 0.6);
+  border: 1px solid rgba(90, 79, 208, 0.35);
+  border-radius: var(--radius);
 }
 .hud__item { display: flex; flex-direction: column; align-items: center; }
 .hud__label { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.6; }
+.hud__lives span:last-child { color: var(--color-accent); font-size: 1.1rem; }
 
 .board { position: relative; }
+.board::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: var(--radius);
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
 canvas { display: block; border-radius: var(--radius); background: var(--color-panel); }
 
 .overlay {
@@ -40,9 +52,17 @@ canvas { display: block; border-radius: var(--radius); background: var(--color-p
   display: grid; place-content: center; text-align: center;
   background: rgba(7, 6, 26, 0.82);
   border-radius: var(--radius);
+  transition: opacity var(--dur, 240ms) ease;
 }
 .overlay[hidden] { display: none; }
-.overlay h1 { color: var(--color-accent); margin: 0 0 var(--space-sm); }
+.overlay h1 {
+  color: var(--color-accent);
+  margin: 0 0 var(--space-sm);
+  font-size: clamp(1.6rem, 1rem + 3vw, 2.6rem);
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 18px rgba(255, 206, 58, 0.45);
+}
+.overlay p { opacity: 0.85; }
 
 .dpad { display: none; }
 
@@ -54,9 +74,21 @@ canvas { display: block; border-radius: var(--radius); background: var(--color-p
     gap: var(--space-sm);
     justify-content: center;
   }
-  .dpad__btn { font-size: 1.3rem; border: none; border-radius: 10px; background: #1d1947; color: var(--color-text); }
+  .dpad__btn {
+    font-size: 1.3rem;
+    border: none;
+    border-radius: 10px;
+    background: #1d1947;
+    color: var(--color-text);
+    transition: transform var(--duration-fast, 120ms) ease;
+  }
+  .dpad__btn:active { transform: scale(0.92); }
   .dpad__up { grid-area: 1 / 2; }
   .dpad__left { grid-area: 2 / 1; }
   .dpad__down { grid-area: 3 / 2; }
   .dpad__right { grid-area: 2 / 3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay, .dpad__btn { transition: none; }
 }
