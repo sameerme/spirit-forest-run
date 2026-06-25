@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Bikram Betaal: The Hunt</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="stage">
+    <header class="hud">
+      <div class="hud__item"><span class="hud__label">Score</span><span id="score">0</span></div>
+      <div class="hud__item"><span class="hud__label">High</span><span id="highscore">0</span></div>
+      <div class="hud__item"><span class="hud__label">Level</span><span id="level">1</span></div>
+      <div class="hud__item hud__lives"><span class="hud__label">Lives</span><span id="lives"></span></div>
+    </header>
+
+    <div class="board">
+      <canvas id="game" width="504" height="552" aria-label="Bikram Betaal maze"></canvas>
+      <div id="overlay" class="overlay" hidden>
+        <h1 id="overlay-title">Bikram Betaal</h1>
+        <p id="overlay-text">Press Enter or tap to begin</p>
+      </div>
+    </div>
+
+    <nav class="dpad" aria-label="Movement controls">
+      <button class="dpad__btn dpad__up" data-dir="up" aria-label="Up">▲</button>
+      <button class="dpad__btn dpad__left" data-dir="left" aria-label="Left">◀</button>
+      <button class="dpad__btn dpad__down" data-dir="down" aria-label="Down">▼</button>
+      <button class="dpad__btn dpad__right" data-dir="right" aria-label="Right">▶</button>
+    </nav>
+  </main>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
