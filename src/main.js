@@ -1,4 +1,4 @@
-import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE } from './constants.js';
+import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, PROMO, BANNER } from './constants.js';
 import { loadAssets } from './engine/loader.js';
 import { createInput } from './engine/input.js';
 import { createCamera } from './engine/camera.js';
@@ -112,6 +112,49 @@ function drawParallax() {
   }
 }
 
+// Recurring promo billboard in the canopy band (decorative, no collision).
+function drawBanner(x) {
+  const { w, h, y } = BANNER;
+  ctx.save();
+  // drop shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath(); ctx.roundRect(x + 6, y + 8, w, h, 16); ctx.fill();
+  // panel
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, '#2a1f50'); g.addColorStop(1, '#140f2c');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(x, y, w, h, 16); ctx.fill();
+  // halftone texture, clipped to the panel
+  ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, w, h, 16); ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  for (let yy = y; yy < y + h; yy += 8) for (let xx = x; xx < x + w; xx += 8) { ctx.beginPath(); ctx.arc(xx, yy, 1.3, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  // comic ink + accent borders
+  ctx.lineWidth = 5; ctx.strokeStyle = COLORS.bikram; ctx.beginPath(); ctx.roundRect(x, y, w, h, 16); ctx.stroke();
+  ctx.lineWidth = 2; ctx.strokeStyle = COLORS.ink; ctx.beginPath(); ctx.roundRect(x + 5, y + 5, w - 10, h - 10, 12); ctx.stroke();
+  // little "PROMO" tab
+  ctx.fillStyle = COLORS.bikram; ctx.beginPath(); ctx.roundRect(x + 16, y - 12, 96, 26, 8); ctx.fill();
+  ctx.fillStyle = COLORS.ink; ctx.font = '18px Bangers, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('PROMO', x + 64, y + 7);
+  // content
+  ctx.fillStyle = COLORS.text; ctx.font = '46px Bangers, sans-serif';
+  ctx.fillText(PROMO.title, x + w / 2, y + h * 0.5);
+  ctx.fillStyle = COLORS.energy; ctx.font = '27px Bangers, sans-serif';
+  ctx.fillText(PROMO.date, x + w / 2, y + h * 0.82);
+  ctx.restore();
+}
+
+function drawBanners() {
+  const { w, spacing, parallax } = BANNER;
+  const camX = game.camera.x * parallax;
+  const first = Math.floor((camX - w) / spacing);
+  const last = Math.floor((camX + VW) / spacing);
+  for (let k = first; k <= last; k++) {
+    const worldX = k * spacing + (spacing - w) / 2; // centre each banner in its slot
+    if (worldX < 700) continue; // keep the opening runway clear
+    drawBanner(worldX - camX);
+  }
+}
+
 function drawGround() {
   const a = assets.get('ground_tile');
   const pits = game.runtime.pits();
@@ -154,6 +197,7 @@ function render() {
   // enemies) stays readable.
   ctx.fillStyle = 'rgba(7, 5, 15, 0.5)';
   ctx.fillRect(0, 0, VW, VH);
+  if (game.scene === SCENE.PLAY || game.scene === SCENE.CLEAR) drawBanners();
   drawGround();
   if (game.scene === SCENE.PLAY || game.scene === SCENE.CLEAR) {
     drawGoal();

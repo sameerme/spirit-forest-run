@@ -45,3 +45,9 @@ export const COLORS = {
   text: '#f5f3ff',
   halftone: 'rgba(10,8,20,0.16)',
 };
+
+// ---- Promo banner (decorative, recurring billboard in the forest canopy) ----
+// EDIT THIS to change the promo. No image needed — text is drawn at runtime.
+export const PROMO = { title: 'BIKRAM BETAAL', date: 'NEW SEASON · COMING SOON' };
+// Banner geometry (virtual px). Sits in the top canopy band, clear of gameplay.
+export const BANNER = { w: 480, h: 150, y: 110, spacing: 1100, parallax: 1.0 };
