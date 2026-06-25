@@ -1,4 +1,6 @@
-import { PLAYER_X, ENERGY_PER_SPHERE, GROUND_TOP, VW } from '../constants.js';
+import { PLAYER_X, ENERGY_PER_SPHERE, GROUND_TOP, VW, VH } from '../constants.js';
+
+const NO_FLOOR = 100000; // effective "ground" when the player is over a pit gap
 import { aabbOverlap } from '../engine/physics.js';
 import { createSprite, frameRect } from '../engine/sprite.js';
 import { entitiesToSpawn } from './spawner.js';
@@ -19,6 +21,28 @@ export function createLevelRuntime(levelData) {
     idx: 0,
     distance: 0,
     spheres: 0,
+    pitFalling: false,
+
+    // Effective floor under the player for this frame. Over a pit gap there is no
+    // floor (the player falls); on solid ground / a platform it's GROUND_TOP.
+    // Coyote-time and a jump can still save the player at the ledge — only once he
+    // has actually dropped to ground level over the gap does the fall commit.
+    floorFor(camera, player) {
+      if (this.pitFalling) return NO_FLOOR;
+      // Standing on a platform above the gap: leave it to the platform logic.
+      if (player.grounded && player.y + player.h < GROUND_TOP - 4) return GROUND_TOP;
+      const pc = camera.x + PLAYER_X + player.w / 2;
+      let overPit = false;
+      for (const e of this.active) {
+        if (e.type === 'pit' && pc >= e.worldX && pc <= e.worldX + e.w) { overPit = true; break; }
+      }
+      if (!overPit) return GROUND_TOP;
+      if (player.grounded) player.setAirborneFromLedge(); // give coyote + un-ground at the edge
+      if (player.vy > 0 && player.y + player.h >= GROUND_TOP && player.coyote <= 0) {
+        this.pitFalling = true; // missed the jump — committed to falling
+      }
+      return NO_FLOOR;
+    },
 
     update(dt, camera, player, audio) {
       const spawnX = camera.x + VW + 100;
@@ -30,18 +54,6 @@ export function createLevelRuntime(levelData) {
       let died = false;
       const px = camera.x + PLAYER_X;
       const pBox = { x: px, y: player.y, w: player.w, h: player.h };
-      const pCenter = px + player.w / 2;
-
-      // pit support / fall detection
-      let overPit = false;
-      for (const e of this.active) {
-        if (e.type !== 'pit') continue;
-        if (pCenter >= e.worldX && pCenter <= e.worldX + e.w) {
-          overPit = true;
-          if (player.grounded && player.y + player.h >= GROUND_TOP - 1) died = true;
-        }
-      }
-      if (overPit && player.grounded) player.setAirborneFromLedge();
 
       for (const e of this.active) {
         updateEntity(e, dt);
@@ -53,7 +65,7 @@ export function createLevelRuntime(levelData) {
           const falling = player.vy > 0;
           const overTop = pBox.x + pBox.w > wb.x && pBox.x < wb.x + wb.w;
           const atTop = player.y + player.h >= wb.y && player.y + player.h <= wb.y + 28;
-          if (falling && overTop && atTop) { player.y = wb.y - player.h; player.vy = 0; player.grounded = true; player.jumpsUsed = 0; }
+          if (falling && overTop && atTop) { player.y = wb.y - player.h; player.vy = 0; player.grounded = true; player.jumpsUsed = 0; this.pitFalling = false; }
         } else if (e.type === 'snake' || e.type === 'bat' || e.type === 'spirit') {
           if (aabbOverlap(pBox, wb)) {
             if (player.isInvincible()) { if (player.dash > 0) e.consumed = true; }
@@ -64,6 +76,9 @@ export function createLevelRuntime(levelData) {
 
       // prune entities fully off the left edge
       this.active = this.active.filter((e) => e.worldX + (e.w || 0) > camera.x - 50 && !e.consumed);
+
+      // Falling into a pit: game over once the player drops off the bottom.
+      if (player.y > VH) died = true;
 
       this.distance = camera.x;
       const won = camera.x + PLAYER_X >= levelData.goalX;
