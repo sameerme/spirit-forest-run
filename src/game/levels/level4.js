@@ -1,1 +1,1 @@
-export default { id: 4, speed: 320, minGap: 380, length: 10000, spirits: true, maxBats: 2, maxPit: 3, seed: 404, sphereChance: 0.4 };
+export default { id: 4, speed: 260, minGap: 440, length: 9500, spirits: true, maxBats: 2, maxPit: 2, seed: 404, sphereChance: 0.54 };

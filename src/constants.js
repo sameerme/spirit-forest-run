@@ -3,17 +3,17 @@ export const VH = 960;
 export const TILE = 60;
 export const GROUND_TOP = VH - TILE * 2; // 840
 
-export const GRAVITY = 2600;       // px/s^2
-export const JUMP_V = 980;         // px/s upward impulse
-export const DOUBLE_JUMP_V = 880;  // px/s upward impulse (2nd jump)
+export const GRAVITY = 2050;       // px/s^2 (lower = floatier, longer hang-time)
+export const JUMP_V = 980;         // px/s upward impulse (higher apex under lower gravity)
+export const DOUBLE_JUMP_V = 860;  // px/s upward impulse (2nd jump)
 
 export const PLAYER_X = Math.round(VW * 0.28); // fixed screen x (151)
 export const PLAYER_W = 70;
 export const PLAYER_H = 96;
 
-export const COYOTE_MS = 90;
-export const JUMP_BUFFER_MS = 120;
-export const INVULN_MS = 1000;
+export const COYOTE_MS = 150;       // forgiving: jump shortly after leaving a ledge
+export const JUMP_BUFFER_MS = 170;  // forgiving: tap slightly before landing still jumps
+export const INVULN_MS = 1300;      // longer recovery i-frames after a hit
 export const DASH_MS = 2000;
 
 export const ENERGY_MAX = 100;
