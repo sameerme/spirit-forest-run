@@ -168,13 +168,16 @@ function drawBanner(x) {
   // title
   shrinkToFit(PROMO.title, innerW * 0.95, 34, 800);
   ctx.fillStyle = COLORS.text; ctx.fillText(PROMO.title, tx, y + 52);
-  // date wrapped to two short lines (wrap early so each line stays well inside
-  // the box even when a mobile web-font renders wider than it measures)
-  ctx.font = `600 23px ${PROMO_FONT}`;
-  const lines = wrapText(PROMO.date, innerW * 0.6);
+  // date: explicit config lines (or auto-wrap a plain string); shrink so the
+  // widest line fits the box even when a mobile web-font renders wider.
+  let ds = 23;
+  ctx.font = `600 ${ds}px ${PROMO_FONT}`;
+  const lines = Array.isArray(PROMO.date) ? PROMO.date : wrapText(PROMO.date, innerW * 0.6);
+  const widest = () => Math.max(...lines.map((l) => ctx.measureText(l).width));
+  while (ds > 14 && widest() > innerW) { ds -= 1; ctx.font = `600 ${ds}px ${PROMO_FONT}`; }
   ctx.fillStyle = COLORS.energy;
   let dy = y + 90;
-  for (let i = 0; i < lines.length && i < 2; i++) { ctx.fillText(lines[i], tx, dy); dy += 28; }
+  for (let i = 0; i < lines.length && i < 2; i++) { ctx.fillText(lines[i], tx, dy); dy += ds + 5; }
   ctx.restore();
   ctx.restore();
 }
@@ -269,10 +272,11 @@ async function boot() {
   // Preload the Odia promo font so the banner renders correctly from the start.
   try {
     if (document.fonts && document.fonts.load) {
+      const promoText = `${PROMO.title} ${[].concat(PROMO.date).join(' ')}`;
       await Promise.race([
         Promise.all([
-          document.fonts.load('800 44px "Baloo Bhaina 2"', PROMO.title),
-          document.fonts.load('600 28px "Baloo Bhaina 2"', PROMO.date),
+          document.fonts.load('800 44px "Baloo Bhaina 2"', promoText),
+          document.fonts.load('600 28px "Baloo Bhaina 2"', promoText),
         ]),
         new Promise((r) => setTimeout(r, 2500)),
       ]);
