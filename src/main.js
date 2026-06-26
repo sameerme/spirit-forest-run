@@ -250,7 +250,7 @@ const BG_W = 1080;
 const adImg = new Image();
 let adReady = false;
 adImg.onload = () => { adReady = true; };
-adImg.src = `assets/${encodeURIComponent('Bikram Betal Dated Post.jpeg')}`;
+adImg.src = `assets/${encodeURIComponent('Bikram Betal Dated Post.webp')}`;
 
 const bgImages = new Map();
 function loadBg(levelIndex) {
@@ -258,7 +258,7 @@ function loadBg(levelIndex) {
   if (bgImages.has(levelIndex)) return bgImages.get(levelIndex);
   const entry = { img: new Image(), ready: false };
   entry.img.onload = () => { entry.ready = true; };
-  entry.img.src = `assets/bg_l${levelIndex + 1}.jpg`;
+  entry.img.src = `assets/bg_l${levelIndex + 1}.webp`;
   bgImages.set(levelIndex, entry);
   return entry;
 }
