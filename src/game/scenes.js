@@ -1,7 +1,7 @@
 import { VW, VH, COLORS } from '../constants.js';
 
 const COPY = {
-  title:    { t: 'SPIRIT FOREST RUN', s: 'Bikram & the Betaal', p: 'TAP TO BEGIN' },
+  title:    { t: 'BIKRAM BETAAL', s: '', p: 'TAP TO BEGIN' },
   level:    { t: 'LEVEL', s: '', p: 'TAP TO RUN' },
   clear:    { t: 'BETAAL CAPTURED', s: '', p: 'TAP FOR NEXT LEVEL' },
   gameover: { t: 'BETAAL WON', s: '', p: 'TAP TO RETRY' },

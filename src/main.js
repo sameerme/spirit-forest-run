@@ -12,6 +12,7 @@ import { createLevelRuntime } from './game/level.js';
 import { LEVELS } from './game/levels/levels.js';
 import { drawHud } from './game/hud.js';
 import { drawOverlay } from './game/scenes.js';
+import { createGhosts } from './game/ghosts.js';
 import { loadProgress, saveProgress } from './game/scoring.js';
 import { loadMeta, addCoins, unlockSkin, selectSkin, recordDailyPlay, skinById, SKINS } from './game/meta.js';
 
@@ -122,6 +123,7 @@ const SCENE = { TITLE: 'title', LEVEL: 'level', PLAY: 'play', CLEAR: 'clear', GA
 let assets = null;
 let game = null;
 let anims = null;
+const ghosts = createGhosts(); // ambient floating ghosts in the upper sky
 let dailyStreak = 0;
 
 function newGame(startLevel = 0) {
@@ -337,6 +339,7 @@ function render() {
   // enemies) stays readable.
   ctx.fillStyle = 'rgba(7, 5, 15, 0.5)';
   ctx.fillRect(0, 0, VW, VH);
+  ghosts.draw(ctx, assets); // atmospheric ghosts above the scrim, behind gameplay
   const playing = game.scene === SCENE.PLAY || game.scene === SCENE.CLEAR;
   // Screen shake offsets the gameplay layer only.
   const sh = fx.shakeOffset();
@@ -378,6 +381,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   update(dt);
+  ghosts.update(dt); // drift continuously across every scene
   fx.update(dt); // animate particles/popups/confetti on every scene (incl. end screens)
   render();
   requestAnimationFrame(frame);
