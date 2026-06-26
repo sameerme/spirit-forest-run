@@ -132,6 +132,7 @@ function newGame(startLevel = 0) {
     high: prog.high,
     newHigh: false,   // set when this run beats the stored high
     baseCoins: loadMeta(store).coins, // coins banked before this run (for HUD total)
+    dustT: 0,         // running-dust spawn timer
     sceneTimer: 0,
   };
 }
@@ -199,6 +200,14 @@ function update(dt) {
       fx.shake(12);
       fx.burst(ev.x, ev.y, COLORS.heart, 18, 300);
     }
+  }
+
+  // Running dust at the feet while grounded — sells the run on a single-frame sprite.
+  if (game.player.grounded) {
+    game.dustT -= dt;
+    if (game.dustT <= 0) { game.dustT = 0.08; fx.burst(PLAYER_X - 2, GROUND_TOP, '#cba86a', 5, 110); }
+  } else {
+    game.dustT = 0;
   }
 
   // Score: distance progressed + sphere/stomp bonus (starts at 0, only climbs).
@@ -341,9 +350,26 @@ function drawPlayer() {
   else { frame = anims.run.update(1 / 60); }
   const a = assets.get(key);
   const fr = frameRect(a.meta, Math.min(frame, a.meta.frames - 1));
+  const dw = p.w + 16, dh = p.h + 14;
+  const cx = PLAYER_X - 6 + dw / 2;     // sprite centre
+  const feet = p.y - 8 + dh + 10;       // ground-contact line (nudged down so feet plant)
+
+  // Fake a run with a bouncing gait + slight body rock while grounded; a forward
+  // lean while airborne. (Single-frame sprite, so the motion sells the running.)
+  let bob = 0, rot = 0;
+  const ph = performance.now() / 1000 * 16;
+  if (p.grounded && game.scene === SCENE.PLAY) {
+    bob = -Math.abs(Math.sin(ph)) * 6;  // bounce up off the ground
+    rot = Math.sin(ph) * 0.05;          // gentle rock
+  } else if (!p.grounded) {
+    rot = p.vy < 0 ? -0.12 : 0.10;      // lean into the jump / fall
+  }
+
   ctx.save();
   if (skinFilter && skinFilter !== 'none') ctx.filter = skinFilter; // selected skin tint
-  ctx.drawImage(a.img, fr.sx, fr.sy, fr.sw, fr.sh, PLAYER_X - 6, p.y - 8, p.w + 16, p.h + 14);
+  ctx.translate(cx, feet);
+  ctx.rotate(rot);
+  ctx.drawImage(a.img, fr.sx, fr.sy, fr.sw, fr.sh, -dw / 2, -dh + bob, dw, dh);
   ctx.restore();
 }
 
