@@ -145,6 +145,8 @@ function startLevel(index) {
   game.scene = SCENE.LEVEL;
   game.sceneTimer = 1100;
   fx.clear();
+  loadBg(index);       // current level's background
+  loadBg(index + 1);   // prefetch the next one
 }
 
 function tap() {
@@ -226,13 +228,29 @@ function endRun(scene) {
 }
 
 // ---- draw ----
-function drawParallax() {
-  const layers = [['bg_far', 0.2], ['bg_mid', 0.5], ['bg_near', 0.8]];
-  for (const [key, f] of layers) {
-    const a = assets.get(key);
-    const w = a.meta.fw;
-    let ox = -((game.camera.x * f) % w);
-    for (let x = ox; x < VW; x += w) ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, x, 0, w, VH);
+// Per-level backgrounds, lazy-loaded so the page/app only fetches the current
+// level's image (~0.5MB) instead of all 15 up front.
+const BG_W = 1080;
+const bgImages = new Map();
+function loadBg(levelIndex) {
+  if (levelIndex < 0 || levelIndex >= LEVELS.length) return;
+  if (bgImages.has(levelIndex)) return bgImages.get(levelIndex);
+  const entry = { img: new Image(), ready: false };
+  entry.img.onload = () => { entry.ready = true; };
+  entry.img.src = `assets/bg_l${levelIndex + 1}.jpg`;
+  bgImages.set(levelIndex, entry);
+  return entry;
+}
+
+function drawBackground() {
+  const entry = bgImages.get(game.levelIndex);
+  if (entry && entry.ready) {
+    const f = 0.4; // slow parallax
+    let ox = -((game.camera.x * f) % BG_W);
+    for (let x = ox; x < VW; x += BG_W) ctx.drawImage(entry.img, x, 0, BG_W, VH);
+  } else {
+    ctx.fillStyle = COLORS.sky2; // solid fallback until the image loads
+    ctx.fillRect(0, 0, VW, VH);
   }
 }
 
@@ -375,7 +393,7 @@ function drawGoal() {
 
 function render() {
   ctx.clearRect(0, 0, VW, VH);
-  drawParallax();
+  drawBackground();
   // Dark scrim pushes the dense forest art back so foreground (ground, player,
   // enemies) stays readable.
   ctx.fillStyle = 'rgba(7, 5, 15, 0.5)';
@@ -455,6 +473,7 @@ async function boot() {
   };
   dailyStreak = recordDailyPlay(store); // count today's visit toward the streak
   game = newGame(0);
+  loadBg(0); // level 1 background (also used behind the title)
   const input = createInput(canvas);
   input.onJump(tap);
   input.onDash(dash);

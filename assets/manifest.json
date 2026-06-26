@@ -12,9 +12,6 @@
   "ground_tile":    { "file": "ground_tile.png",    "frames": 1, "fw": 60,   "fh": 60 },
   "ground_edge":    { "file": "ground_edge.png",    "frames": 1, "fw": 60,   "fh": 60 },
   "platform_log":   { "file": "platform_log.png",   "frames": 1, "fw": 180,  "fh": 60 },
-  "bg_far":         { "file": "bg_far.jpg",         "frames": 1, "fw": 1080, "fh": 960 },
-  "bg_mid":         { "file": "bg_mid.jpg",         "frames": 1, "fw": 1080, "fh": 960 },
-  "bg_near":        { "file": "bg_near.jpg",        "frames": 1, "fw": 1080, "fh": 960 },
   "decor":          { "file": "decor.png",          "frames": 1, "fw": 90,   "fh": 90 },
   "ui_hearts":      { "file": "ui_hearts.png",      "frames": 1, "fw": 60,   "fh": 60 },
   "title_logo":     { "file": "title_logo.png",     "frames": 1, "fw": 480,  "fh": 240 }
