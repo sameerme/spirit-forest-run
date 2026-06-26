@@ -141,6 +141,7 @@ function newGame(startLevel = 0) {
     newHigh: false,   // set when this run beats the stored high
     baseCoins: loadMeta(store).coins, // coins banked before this run (for HUD total)
     sceneTimer: 0,
+    ambientT: 7 + Math.random() * 7, // seconds until the next eerie one-shot
   };
 }
 
@@ -160,6 +161,8 @@ function startLevel(index) {
 function tap() {
   audio.resume();
   music.start(); // begins on first user gesture (idempotent; respects mute pref)
+  audio.loadAmbient(['assets/sfx/howl.wav', 'assets/sfx/creepy.wav']); // idempotent
+
   if (game.scene === SCENE.TITLE) { startLevel(game.levelIndex); return; }
   if (game.scene === SCENE.LEVEL) { game.scene = SCENE.PLAY; return; }
   if (game.scene === SCENE.CLEAR) {
@@ -183,6 +186,10 @@ function dash() {
 function update(dt) {
   if (game.scene === SCENE.LEVEL) { game.sceneTimer -= dt * 1000; if (game.sceneTimer <= 0) game.scene = SCENE.PLAY; return; }
   if (game.scene !== SCENE.PLAY) return;
+
+  // Occasional distant ambience (howl / creepy drone), randomized, mute-gated.
+  game.ambientT -= dt;
+  if (game.ambientT <= 0) { audio.ambient(0.3); game.ambientT = 12 + Math.random() * 13; }
 
   const lvl = LEVELS[game.levelIndex];
   game.camera.update(dt, lvl.speed);

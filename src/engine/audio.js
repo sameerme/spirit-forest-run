@@ -2,6 +2,8 @@ export function createAudio() {
   let ctx = null;
   let noiseBuf = null;
   let muted = false;
+  let ambientBuffers = [];
+  let ambientState = 'idle'; // idle | loading | ready
   const ensure = () => (ctx ||= new (window.AudioContext || window.webkitAudioContext)());
 
   function blip(freq, durMs, type = 'square', gain = 0.05) {
@@ -42,6 +44,34 @@ export function createAudio() {
     resume() { const ac = ensure(); if (ac.state === 'suspended') ac.resume(); },
     setMuted(on) { muted = !!on; },
     isMuted() { return muted; },
+
+    // Lazily load occasional ambient one-shots (distant howl, creepy drone)
+    // from WAV assets. Idempotent — safe to call on every tap.
+    async loadAmbient(urls) {
+      if (ambientState !== 'idle') return;
+      ambientState = 'loading';
+      const ac = ensure();
+      try {
+        const decoded = await Promise.all(
+          urls.map((u) => fetch(u).then((r) => r.arrayBuffer()).then((b) => ac.decodeAudioData(b))),
+        );
+        ambientBuffers = decoded;
+        ambientState = 'ready';
+      } catch {
+        ambientState = 'idle'; // allow a later retry
+      }
+    },
+
+    // Play one random ambient one-shot, low and distant. Mute-gated.
+    ambient(gain = 0.3) {
+      if (muted || ambientState !== 'ready' || !ambientBuffers.length) return;
+      const ac = ensure();
+      const src = ac.createBufferSource();
+      src.buffer = ambientBuffers[(Math.random() * ambientBuffers.length) | 0];
+      const g = ac.createGain(); g.gain.value = gain;
+      src.connect(g).connect(ac.destination);
+      src.start();
+    },
 
     jump() { if (muted) return; blip(560, 110, 'square'); },
     hit() { if (muted) return; blip(180, 240, 'sawtooth', 0.07); },
