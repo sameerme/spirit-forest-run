@@ -44,6 +44,8 @@ export function createLevelRuntime(levelData) {
       return NO_FLOOR;
     },
 
+    events: [],
+
     update(dt, camera, player, audio) {
       const spawnX = camera.x + VW + 100;
       const { spawned, nextIndex } = entitiesToSpawn(levelData.entities, spawnX, this.idx);
@@ -52,6 +54,7 @@ export function createLevelRuntime(levelData) {
       this.idx = nextIndex;
 
       let died = false;
+      this.events = []; // {type:'sphere'|'stomp'|'hit', x, y} in SCREEN coords for fx
       const px = camera.x + PLAYER_X;
       const pBox = { x: px, y: player.y, w: player.w, h: player.h };
 
@@ -59,8 +62,12 @@ export function createLevelRuntime(levelData) {
         updateEntity(e, dt);
         if (e.consumed || e.taken) continue;
         const wb = worldBox(e);
+        const ex = wb.x - camera.x + wb.w / 2;
         if (e.type === 'sphere') {
-          if (aabbOverlap(pBox, wb)) { e.taken = true; player.addEnergy(ENERGY_PER_SPHERE); this.spheres++; audio.sphere(); }
+          if (aabbOverlap(pBox, wb)) {
+            e.taken = true; player.addEnergy(ENERGY_PER_SPHERE); this.spheres++; audio.sphere();
+            this.events.push({ type: 'sphere', x: ex, y: wb.y + wb.h / 2 });
+          }
         } else if (e.type === 'platform') {
           const falling = player.vy > 0;
           const overTop = pBox.x + pBox.w > wb.x && pBox.x < wb.x + wb.w;
@@ -68,8 +75,13 @@ export function createLevelRuntime(levelData) {
           if (falling && overTop && atTop) { player.y = wb.y - player.h; player.vy = 0; player.grounded = true; player.jumpsUsed = 0; this.pitFalling = false; }
         } else if (e.type === 'snake' || e.type === 'bat' || e.type === 'spirit') {
           if (aabbOverlap(pBox, wb)) {
-            if (player.isInvincible()) { if (player.dash > 0) e.consumed = true; }
-            else { const dead = player.hit(); audio.hit(); if (dead) died = true; }
+            if (player.isInvincible()) {
+              if (player.dash > 0) { e.consumed = true; this.events.push({ type: 'stomp', x: ex, y: wb.y }); }
+            } else {
+              const dead = player.hit(); audio.hit();
+              this.events.push({ type: 'hit', x: PLAYER_X + player.w / 2, y: player.y + player.h / 2 });
+              if (dead) died = true;
+            }
           }
         }
       }

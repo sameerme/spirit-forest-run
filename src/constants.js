@@ -16,6 +16,8 @@ export const JUMP_BUFFER_MS = 170;  // forgiving: tap slightly before landing st
 export const INVULN_MS = 1300;      // longer recovery i-frames after a hit
 export const DASH_MS = 2000;
 
+export const COMBO_CAP = 6;          // max sphere score multiplier
+export const COIN_PER_SPHERE = 1;    // coins banked per sphere
 export const ENERGY_MAX = 100;
 export const ENERGY_PER_SPHERE = 34;
 export const SPHERE_SCORE = 50;

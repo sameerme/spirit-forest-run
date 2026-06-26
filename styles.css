@@ -62,3 +62,35 @@ html { -webkit-tap-highlight-color: transparent; }
 /* nudge share + toast so the two CTAs stack cleanly */
 .share-btn { bottom: 11%; }
 .toast { bottom: 32%; }
+
+/* ---- Skins (title button + panel) ---- */
+.skin-btn {
+  position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%);
+  font-family: "Bangers", system-ui, sans-serif; font-size: 1.2rem; letter-spacing: 0.04em;
+  color: #141019; background: #9fe8ff; border: 3px solid #141019; border-radius: 12px;
+  padding: 8px 18px; cursor: pointer; z-index: 10; -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 0 #2a6b80;
+}
+.skin-btn[hidden] { display: none; }
+.skin-btn:active { transform: translateX(-50%) translateY(2px); box-shadow: 0 2px 0 #2a6b80; }
+.skins-panel {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 84%; max-width: 380px; background: #14102e; border: 3px solid #ffce3a; border-radius: 16px;
+  padding: 14px; z-index: 20; color: #f5f3ff; font-family: "Bangers", system-ui, sans-serif;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+}
+.skins-panel[hidden] { display: none; }
+.skins-head { display: flex; justify-content: space-between; align-items: center; font-size: 1.4rem; margin-bottom: 10px; letter-spacing: 0.04em; }
+.skins-coins { color: #ffd24a; }
+.skins-list { display: flex; flex-direction: column; gap: 8px; }
+.skin-row {
+  font-family: "Bangers", system-ui, sans-serif; font-size: 1.2rem; letter-spacing: 0.03em;
+  text-align: left; color: #f5f3ff; background: #241a3a; border: 2px solid #3a2f6e;
+  border-radius: 10px; padding: 10px 14px; cursor: pointer;
+}
+.skin-row.selected { border-color: #74e08b; color: #74e08b; }
+.skin-row:active { transform: scale(0.98); }
+.skins-close {
+  margin-top: 12px; width: 100%; font-family: "Bangers", system-ui, sans-serif; font-size: 1.1rem;
+  color: #141019; background: #ffce3a; border: none; border-radius: 10px; padding: 10px; cursor: pointer;
+}

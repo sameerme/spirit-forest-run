@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Spirit Forest Run</title>
+  <meta name="theme-color" content="#0b0a1f" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Baloo+Bhaina+2:wght@600;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
@@ -14,6 +17,15 @@
     <button id="dlBtn" class="dl-btn" hidden>⬇️ Download Tarang+</button>
     <button id="shareBtn" class="share-btn" hidden>📣 Share Game</button>
     <button id="muteBtn" class="mute-btn" aria-label="Toggle music">🔊</button>
+    <button id="skinBtn" class="skin-btn" hidden>🎨 Skins</button>
+    <div id="skinsPanel" class="skins-panel" hidden>
+      <div class="skins-head">
+        <span>Choose a Skin</span>
+        <span id="skinsCoins" class="skins-coins">0 🪙</span>
+      </div>
+      <div id="skinsList" class="skins-list"></div>
+      <button id="skinsClose" class="skins-close">Close</button>
+    </div>
     <div id="toast" class="toast" hidden></div>
   </div>
   <script type="module" src="src/main.js"></script>

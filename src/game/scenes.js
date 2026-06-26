@@ -17,8 +17,20 @@ export function drawOverlay(ctx, kind, data = {}) {
   const title = kind === 'level' ? `LEVEL ${data.level || 1}` : c.t;
   ctx.fillText(title, VW / 2, VH * 0.4);
   if (c.s) { ctx.fillStyle = COLORS.text; ctx.font = '34px Bangers, sans-serif'; ctx.fillText(c.s, VW / 2, VH * 0.4 + 50); }
-  if (data.score != null) { ctx.fillStyle = COLORS.text; ctx.font = '30px Bangers, sans-serif'; ctx.fillText(`SCORE ${data.score}`, VW / 2, VH * 0.5); }
+
+  if (kind === 'title') {
+    // streak + coins + best on the title screen
+    if (data.streak > 0) { ctx.fillStyle = COLORS.bikram; ctx.font = '30px Bangers, sans-serif'; ctx.fillText(`🔥 ${data.streak} DAY STREAK`, VW / 2, VH * 0.52); }
+    ctx.fillStyle = COLORS.text; ctx.font = '26px Bangers, sans-serif';
+    ctx.fillText(`BEST ${data.high || 0}   ·   🪙 ${data.coins || 0}`, VW / 2, VH * 0.57);
+  } else if (data.score != null) {
+    if (data.newHigh) { ctx.fillStyle = COLORS.bikram; ctx.font = '32px Bangers, sans-serif'; ctx.fillText('★ NEW HIGH SCORE! ★', VW / 2, VH * 0.47); }
+    ctx.fillStyle = COLORS.text; ctx.font = '30px Bangers, sans-serif';
+    ctx.fillText(`SCORE ${data.score}`, VW / 2, VH * 0.52);
+    if (data.high != null) { ctx.fillStyle = 'rgba(245,243,255,0.75)'; ctx.font = '24px Bangers, sans-serif'; ctx.fillText(`BEST ${data.high}`, VW / 2, VH * 0.565); }
+  }
+
   ctx.fillStyle = COLORS.energy; ctx.font = '36px Bangers, sans-serif';
-  ctx.fillText(c.p, VW / 2, VH * 0.62);
+  ctx.fillText(c.p, VW / 2, VH * 0.64);
   ctx.restore();
 }

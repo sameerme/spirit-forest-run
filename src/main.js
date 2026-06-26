@@ -1,17 +1,19 @@
-import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, PROMO, PROMO_FONT, BANNER } from './constants.js';
+import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, COMBO_CAP, COIN_PER_SPHERE, SPHERE_SCORE, PROMO, PROMO_FONT, BANNER } from './constants.js';
 import { loadAssets } from './engine/loader.js';
 import { createInput } from './engine/input.js';
 import { createCamera } from './engine/camera.js';
 import { applyComic } from './engine/halftone.js';
 import { createAudio } from './engine/audio.js';
 import { createMusic } from './engine/music.js';
+import { createFx } from './engine/fx.js';
 import { frameRect, createSprite } from './engine/sprite.js';
 import { createPlayer } from './game/player.js';
 import { createLevelRuntime } from './game/level.js';
 import { LEVELS } from './game/levels/levels.js';
 import { drawHud } from './game/hud.js';
 import { drawOverlay } from './game/scenes.js';
-import { computeScore, loadProgress, saveProgress } from './game/scoring.js';
+import { loadProgress, saveProgress } from './game/scoring.js';
+import { loadMeta, addCoins, unlockSkin, selectSkin, recordDailyPlay, skinById, SKINS } from './game/meta.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -67,11 +69,52 @@ function shareGame() {
 shareBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
 shareBtn.addEventListener('click', (e) => { e.stopPropagation(); shareGame(); });
 
+// ---- Juice + skins ----
+const fx = createFx();
+let skinFilter = skinById(loadMeta(store).skin).filter;
+
+const skinBtn = document.getElementById('skinBtn');
+const skinsPanel = document.getElementById('skinsPanel');
+const skinsList = document.getElementById('skinsList');
+const skinsClose = document.getElementById('skinsClose');
+const skinsCoins = document.getElementById('skinsCoins');
+
+function renderSkins() {
+  const meta = loadMeta(store);
+  skinsCoins.textContent = `${meta.coins} 🪙`;
+  skinsList.innerHTML = '';
+  for (const s of SKINS) {
+    const owned = meta.unlocked.includes(s.id);
+    const selected = meta.skin === s.id;
+    const row = document.createElement('button');
+    row.className = `skin-row${selected ? ' selected' : ''}`;
+    row.textContent = selected ? `✓ ${s.name}` : owned ? s.name : `🔒 ${s.name} · ${s.cost}🪙`;
+    row.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const m = loadMeta(store);
+      if (!m.unlocked.includes(s.id)) {
+        const r = unlockSkin(store, s.id);
+        if (!r.ok) { showToast(`Need ${s.cost} 🪙 — collect spheres!`); return; }
+      }
+      selectSkin(store, s.id);
+      skinFilter = skinById(s.id).filter;
+      renderSkins();
+    });
+    skinsList.appendChild(row);
+  }
+}
+skinBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+skinBtn.addEventListener('click', (e) => { e.stopPropagation(); renderSkins(); skinsPanel.hidden = false; });
+skinsClose.addEventListener('click', (e) => { e.stopPropagation(); skinsPanel.hidden = true; });
+skinsPanel.addEventListener('pointerdown', (e) => e.stopPropagation());
+skinsPanel.addEventListener('click', (e) => e.stopPropagation());
+
 const SCENE = { TITLE: 'title', LEVEL: 'level', PLAY: 'play', CLEAR: 'clear', GAMEOVER: 'gameover', VICTORY: 'victory' };
 
 let assets = null;
 let game = null;
 let anims = null;
+let dailyStreak = 0;
 
 function newGame(startLevel = 0) {
   const prog = loadProgress(store);
@@ -83,8 +126,12 @@ function newGame(startLevel = 0) {
     runtime: createLevelRuntime(LEVELS[startLevel]),
     score: 0,
     distance: 0,      // cumulative px travelled across all levels (drives the score)
-    spheresTotal: 0,  // spheres banked from completed levels
+    bonus: 0,         // sphere points (with combo multiplier), cumulative
+    combo: 1,         // current sphere multiplier
+    runCoins: 0,      // coins collected this run (banked to meta on game over)
     high: prog.high,
+    newHigh: false,   // set when this run beats the stored high
+    baseCoins: loadMeta(store).coins, // coins banked before this run (for HUD total)
     sceneTimer: 0,
   };
 }
@@ -94,8 +141,10 @@ function startLevel(index) {
   game.camera.reset();
   game.player = createPlayer();
   game.runtime = createLevelRuntime(LEVELS[index]);
+  game.combo = 1;
   game.scene = SCENE.LEVEL;
   game.sceneTimer = 1100;
+  fx.clear();
 }
 
 function tap() {
@@ -104,9 +153,8 @@ function tap() {
   if (game.scene === SCENE.TITLE) { startLevel(game.levelIndex); return; }
   if (game.scene === SCENE.LEVEL) { game.scene = SCENE.PLAY; return; }
   if (game.scene === SCENE.CLEAR) {
-    game.spheresTotal += game.runtime.spheres; // bank this level's spheres before the runtime is replaced
     const next = game.levelIndex + 1;
-    if (next >= LEVELS.length) { game.scene = SCENE.VICTORY; }
+    if (next >= LEVELS.length) { endRun(SCENE.VICTORY); }
     else startLevel(next);
     return;
   }
@@ -133,23 +181,48 @@ function update(dt) {
   game.player.update(dt, floor);
   const { won, died } = game.runtime.update(dt, game.camera, game.player, audio);
 
-  // Score starts at 0 and only ever climbs: distance progressed + spheres collected.
-  game.score = computeScore({
-    distance: game.distance,
-    spheres: game.spheresTotal + game.runtime.spheres,
-    hearts: 0,
-    levelsCleared: 0,
-  });
-  if (game.score > game.high) { game.high = game.score; saveProgress(store, { high: game.high, level: game.levelIndex + 1 }); }
+  // React to gameplay events for combo, coins, and juice.
+  for (const ev of game.runtime.events) {
+    if (ev.type === 'sphere') {
+      game.combo = Math.min(game.combo + 1, COMBO_CAP);
+      const pts = SPHERE_SCORE * game.combo;
+      game.bonus += pts;
+      game.runCoins += COIN_PER_SPHERE;
+      fx.burst(ev.x, ev.y, COLORS.sphere, 12);
+      fx.popup(ev.x, ev.y - 8, `+${pts}${game.combo > 1 ? ` x${game.combo}` : ''}`, COLORS.energy);
+    } else if (ev.type === 'stomp') {
+      game.bonus += SPHERE_SCORE * 2;
+      fx.burst(ev.x, ev.y, COLORS.spirit, 16);
+      fx.popup(ev.x, ev.y - 8, '+100', COLORS.text);
+    } else if (ev.type === 'hit') {
+      game.combo = 1; // break the chain
+      fx.shake(12);
+      fx.burst(ev.x, ev.y, COLORS.heart, 18, 300);
+    }
+  }
+
+  // Score: distance progressed + sphere/stomp bonus (starts at 0, only climbs).
+  game.score = Math.floor(game.distance / 10) + game.bonus;
+  if (game.score > game.high) {
+    if (!game.newHigh && game.high > 0) game.newHigh = true; // beat a previous best
+    game.high = game.score;
+    saveProgress(store, { high: game.high, level: game.levelIndex + 1 });
+  }
 
   if (won) {
     game.scene = SCENE.CLEAR;
     saveProgress(store, { high: game.high, level: Math.min(LEVELS.length, game.levelIndex + 2) });
+    if (game.runCoins > 0) { addCoins(store, game.runCoins); game.runCoins = 0; } // bank progress
     audio.win();
   } else if (died) {
-    // Correction B: removed the dead no-op line
-    game.scene = SCENE.GAMEOVER;
+    endRun(SCENE.GAMEOVER);
   }
+}
+
+function endRun(scene) {
+  if (game.runCoins > 0) { addCoins(store, game.runCoins); game.runCoins = 0; }
+  game.scene = scene;
+  if (scene === SCENE.VICTORY || game.newHigh) { fx.confetti(VW); audio.win(); }
 }
 
 // ---- draw ----
@@ -268,7 +341,10 @@ function drawPlayer() {
   else { frame = anims.run.update(1 / 60); }
   const a = assets.get(key);
   const fr = frameRect(a.meta, Math.min(frame, a.meta.frames - 1));
+  ctx.save();
+  if (skinFilter && skinFilter !== 'none') ctx.filter = skinFilter; // selected skin tint
   ctx.drawImage(a.img, fr.sx, fr.sy, fr.sw, fr.sh, PLAYER_X - 6, p.y - 8, p.w + 16, p.h + 14);
+  ctx.restore();
 }
 
 function drawGoal() {
@@ -287,25 +363,40 @@ function render() {
   // enemies) stays readable.
   ctx.fillStyle = 'rgba(7, 5, 15, 0.5)';
   ctx.fillRect(0, 0, VW, VH);
-  if (game.scene === SCENE.PLAY || game.scene === SCENE.CLEAR) drawBanners();
+  const playing = game.scene === SCENE.PLAY || game.scene === SCENE.CLEAR;
+  // Screen shake offsets the gameplay layer only.
+  const sh = fx.shakeOffset();
+  ctx.save();
+  ctx.translate(sh.x, sh.y);
+  if (playing) drawBanners();
   drawGround();
-  if (game.scene === SCENE.PLAY || game.scene === SCENE.CLEAR) {
+  if (playing) {
     drawGoal();
     game.runtime.draw(ctx, assets, game.camera);
     drawPlayer();
   }
+  ctx.restore();
   applyComic(ctx, VW, VH);
-  if (game.scene === SCENE.PLAY) drawHud(ctx, assets, { hearts: game.player.hearts, energy: game.player.energy, score: game.score, level: game.levelIndex + 1 });
-  if (game.scene === SCENE.TITLE) drawOverlay(ctx, 'title', { high: game.high });
+  if (game.scene === SCENE.PLAY) {
+    drawHud(ctx, assets, {
+      hearts: game.player.hearts, energy: game.player.energy, score: game.score,
+      level: game.levelIndex + 1, combo: game.combo, coins: game.baseCoins + game.runCoins,
+    });
+  }
+  if (game.scene === SCENE.TITLE) drawOverlay(ctx, 'title', { high: game.high, streak: dailyStreak, coins: game.baseCoins });
   if (game.scene === SCENE.LEVEL) drawOverlay(ctx, 'level', { level: game.levelIndex + 1 });
   if (game.scene === SCENE.CLEAR) drawOverlay(ctx, 'clear', { score: game.score });
-  if (game.scene === SCENE.GAMEOVER) drawOverlay(ctx, 'gameover', { score: game.score });
-  if (game.scene === SCENE.VICTORY) drawOverlay(ctx, 'victory', { score: game.score });
-  // Show the Share + Download buttons on the end screens only.
+  if (game.scene === SCENE.GAMEOVER) drawOverlay(ctx, 'gameover', { score: game.score, high: game.high, newHigh: game.newHigh });
+  if (game.scene === SCENE.VICTORY) drawOverlay(ctx, 'victory', { score: game.score, high: game.high, newHigh: game.newHigh });
+  fx.draw(ctx); // particles, score popups, confetti — on top (confetti over end screens)
+  // HTML overlay buttons by scene.
   const showEnd = game.scene === SCENE.GAMEOVER || game.scene === SCENE.VICTORY;
   if (shareBtn.hidden === showEnd) shareBtn.hidden = !showEnd;
   if (dlBtn.hidden === showEnd) dlBtn.hidden = !showEnd;
   if (!showEnd && !toastEl.hidden) toastEl.hidden = true;
+  const onTitle = game.scene === SCENE.TITLE;
+  if (skinBtn.hidden === onTitle) skinBtn.hidden = !onTitle;
+  if (!onTitle && !skinsPanel.hidden) skinsPanel.hidden = true;
 }
 
 // ---- loop ----
@@ -314,6 +405,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   update(dt);
+  fx.update(dt); // animate particles/popups/confetti on every scene (incl. end screens)
   render();
   requestAnimationFrame(frame);
 }
@@ -344,12 +436,18 @@ async function boot() {
     dash: createSprite(4, 14),
     betaal: createSprite(4, 6),
   };
+  dailyStreak = recordDailyPlay(store); // count today's visit toward the streak
   game = newGame(0);
   const input = createInput(canvas);
   input.onJump(tap);
   input.onDash(dash);
   document.addEventListener('visibilitychange', () => { last = performance.now(); });
   requestAnimationFrame(frame);
+}
+
+// Register the service worker for offline play / installability (PWA).
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
 }
 
 boot();
