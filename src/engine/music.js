@@ -11,6 +11,18 @@ export function createMusic() {
   let nextTime = 0;
   let timer = null;
   let drone = []; // persistent nodes (stopped on stop())
+  let noiseBuf = null;
+
+  function makeNoise() {
+    if (!noiseBuf) {
+      noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2), ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const s = ctx.createBufferSource();
+    s.buffer = noiseBuf; s.loop = true;
+    return s;
+  }
 
   const BPM = 74;
   const stepDur = 60 / BPM;     // one quarter-note per step
@@ -75,7 +87,26 @@ export function createMusic() {
       return o;
     });
     lfo.start();
-    drone = [...oscs, lfo];
+
+    // Faint wind/whisper: looping noise through a slowly-sweeping bandpass, with
+    // a gentle gusting volume LFO. Very low in the mix.
+    const wind = makeNoise();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 620; bp.Q.value = 0.8;
+    const windLfo = ctx.createOscillator();
+    const windLfoG = ctx.createGain();
+    windLfo.frequency.value = 0.13; windLfoG.gain.value = 420; // sweep the "whoosh"
+    windLfo.connect(windLfoG).connect(bp.frequency);
+    const windGain = ctx.createGain();
+    windGain.gain.value = 0.02;
+    const gustLfo = ctx.createOscillator();
+    const gustDepth = ctx.createGain();
+    gustLfo.frequency.value = 0.09; gustDepth.gain.value = 0.013; // gusting volume
+    gustLfo.connect(gustDepth).connect(windGain.gain);
+    wind.connect(bp).connect(windGain).connect(master);
+    wind.start(); windLfo.start(); gustLfo.start();
+
+    drone = [...oscs, lfo, wind, windLfo, gustLfo];
   }
 
   function scheduleStep(s, t) {
