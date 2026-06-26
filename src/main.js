@@ -1,4 +1,4 @@
-import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, COMBO_CAP, COIN_PER_SPHERE, SPHERE_SCORE, PROMO, PROMO_FONT, BANNER } from './constants.js';
+import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, COMBO_CAP, COIN_PER_SPHERE, SPHERE_SCORE } from './constants.js';
 import { loadAssets } from './engine/loader.js';
 import { createInput } from './engine/input.js';
 import { createCamera } from './engine/camera.js';
@@ -246,6 +246,12 @@ function endRun(scene) {
 // Per-level backgrounds, lazy-loaded so the page/app only fetches the current
 // level's image (~0.5MB) instead of all 15 up front.
 const BG_W = 1080;
+// Advertisement shown above the title on end screens.
+const adImg = new Image();
+let adReady = false;
+adImg.onload = () => { adReady = true; };
+adImg.src = `assets/${encodeURIComponent('Bikram Betal Dated Post.jpeg')}`;
+
 const bgImages = new Map();
 function loadBg(levelIndex) {
   if (levelIndex < 0 || levelIndex >= LEVELS.length) return;
@@ -266,88 +272,6 @@ function drawBackground() {
   } else {
     ctx.fillStyle = COLORS.sky2; // solid fallback until the image loads
     ctx.fillRect(0, 0, VW, VH);
-  }
-}
-
-// Set ctx.font to the promo font at the largest size that fits maxW, then return.
-// Greedy word-wrap using the current ctx.font.
-function wrapText(text, maxW) {
-  const words = text.split(' ');
-  const lines = [];
-  let cur = '';
-  for (const wd of words) {
-    const test = cur ? `${cur} ${wd}` : wd;
-    if (cur && ctx.measureText(test).width > maxW) { lines.push(cur); cur = wd; }
-    else cur = test;
-  }
-  if (cur) lines.push(cur);
-  return lines;
-}
-// Shrink ctx.font (given weight) until text fits maxW.
-function shrinkToFit(text, maxW, baseSize, weight) {
-  let s = baseSize;
-  ctx.font = `${weight} ${s}px ${PROMO_FONT}`;
-  while (s > 14 && ctx.measureText(text).width > maxW) { s -= 1; ctx.font = `${weight} ${s}px ${PROMO_FONT}`; }
-}
-
-// Recurring promo billboard in the canopy band (decorative, no collision).
-function drawBanner(x) {
-  const { w, h, y } = BANNER;
-  ctx.save();
-  // drop shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.beginPath(); ctx.roundRect(x + 6, y + 8, w, h, 16); ctx.fill();
-  // panel
-  const g = ctx.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, '#2a1f50'); g.addColorStop(1, '#140f2c');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(x, y, w, h, 16); ctx.fill();
-  // halftone texture, clipped to the panel
-  ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, w, h, 16); ctx.clip();
-  ctx.fillStyle = 'rgba(255,255,255,0.05)';
-  for (let yy = y; yy < y + h; yy += 8) for (let xx = x; xx < x + w; xx += 8) { ctx.beginPath(); ctx.arc(xx, yy, 1.3, 0, Math.PI * 2); ctx.fill(); }
-  ctx.restore();
-  // comic ink + accent borders
-  ctx.lineWidth = 5; ctx.strokeStyle = COLORS.bikram; ctx.beginPath(); ctx.roundRect(x, y, w, h, 16); ctx.stroke();
-  ctx.lineWidth = 2; ctx.strokeStyle = COLORS.ink; ctx.beginPath(); ctx.roundRect(x + 5, y + 5, w - 10, h - 10, 12); ctx.stroke();
-  // little "PROMO" tab
-  ctx.fillStyle = COLORS.bikram; ctx.beginPath(); ctx.roundRect(x + 16, y - 12, 96, 26, 8); ctx.fill();
-  ctx.fillStyle = COLORS.ink; ctx.font = '18px Bangers, sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('PROMO', x + 64, y + 7);
-  // content (Odia): left-aligned with padding, date wrapped to <=2 lines, all
-  // clipped to the panel. Conservative wrap target so it fits even when a mobile
-  // web-font renders wider than it measures.
-  ctx.save();
-  ctx.beginPath(); ctx.roundRect(x + 6, y, w - 12, h, 12); ctx.clip();
-  ctx.textAlign = 'left';
-  const padX = 40;
-  const tx = x + padX;
-  const innerW = w - padX - 18;
-  // title
-  shrinkToFit(PROMO.title, innerW * 0.95, 34, 800);
-  ctx.fillStyle = COLORS.text; ctx.fillText(PROMO.title, tx, y + 52);
-  // date: explicit config lines (or auto-wrap a plain string); shrink so the
-  // widest line fits the box even when a mobile web-font renders wider.
-  let ds = 23;
-  ctx.font = `600 ${ds}px ${PROMO_FONT}`;
-  const lines = Array.isArray(PROMO.date) ? PROMO.date : wrapText(PROMO.date, innerW * 0.6);
-  const widest = () => Math.max(...lines.map((l) => ctx.measureText(l).width));
-  while (ds > 14 && widest() > innerW) { ds -= 1; ctx.font = `600 ${ds}px ${PROMO_FONT}`; }
-  ctx.fillStyle = COLORS.energy;
-  let dy = y + 90;
-  for (let i = 0; i < lines.length && i < 2; i++) { ctx.fillText(lines[i], tx, dy); dy += ds + 5; }
-  ctx.restore();
-  ctx.restore();
-}
-
-function drawBanners() {
-  const { w, spacing, parallax } = BANNER;
-  const camX = game.camera.x * parallax;
-  const start = (VW - w) / 2; // first banner centred on the opening screen (frame 1)
-  const first = Math.max(0, Math.floor((camX - w - start) / spacing));
-  const last = Math.floor((camX + VW - start) / spacing);
-  for (let k = first; k <= last; k++) {
-    const worldX = start + k * spacing; // banner #0 at the start, then every `spacing` px
-    drawBanner(worldX - camX);
   }
 }
 
@@ -418,7 +342,6 @@ function render() {
   const sh = fx.shakeOffset();
   ctx.save();
   ctx.translate(sh.x, sh.y);
-  if (playing) drawBanners();
   drawGround();
   if (playing) {
     drawGoal();
@@ -435,8 +358,8 @@ function render() {
   }
   if (game.scene === SCENE.TITLE) drawOverlay(ctx, 'title', { high: game.high, streak: dailyStreak, coins: game.baseCoins });
   if (game.scene === SCENE.LEVEL) drawOverlay(ctx, 'level', { level: game.levelIndex + 1 });
-  if (game.scene === SCENE.CLEAR) drawOverlay(ctx, 'clear', { score: game.score });
-  if (game.scene === SCENE.GAMEOVER) drawOverlay(ctx, 'gameover', { score: game.score, high: game.high, newHigh: game.newHigh });
+  if (game.scene === SCENE.CLEAR) drawOverlay(ctx, 'clear', { score: game.score, ad: adReady ? adImg : null });
+  if (game.scene === SCENE.GAMEOVER) drawOverlay(ctx, 'gameover', { score: game.score, high: game.high, newHigh: game.newHigh, ad: adReady ? adImg : null });
   if (game.scene === SCENE.VICTORY) drawOverlay(ctx, 'victory', { score: game.score, high: game.high, newHigh: game.newHigh });
   fx.draw(ctx); // particles, score popups, confetti — on top (confetti over end screens)
   // HTML overlay buttons by scene.
@@ -467,19 +390,6 @@ function fitCanvas() {
 
 async function boot() {
   fitCanvas();
-  // Preload the Odia promo font so the banner renders correctly from the start.
-  try {
-    if (document.fonts && document.fonts.load) {
-      const promoText = `${PROMO.title} ${[].concat(PROMO.date).join(' ')}`;
-      await Promise.race([
-        Promise.all([
-          document.fonts.load('800 44px "Baloo Bhaina 2"', promoText),
-          document.fonts.load('600 28px "Baloo Bhaina 2"', promoText),
-        ]),
-        new Promise((r) => setTimeout(r, 2500)),
-      ]);
-    }
-  } catch { /* fall back to system Odia font */ }
   assets = await loadAssets();
   anims = {
     run: createSprite(3, 11), // 3 run frames (wide-contact + two strides)
