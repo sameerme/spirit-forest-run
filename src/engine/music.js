@@ -1,104 +1,96 @@
-// Programmatic 8-bit / chiptune background loop (WebAudio, no asset files).
-// Square-wave lead + triangle bass (octave bounce) + kick & hi-hat groove.
-// Uses a lookahead scheduler for tight timing. Original composition.
+// Haunted-house horror ambience (WebAudio, no asset files):
+// a low detuned dread drone, a slow eerie music-box motif in A harmonic-minor,
+// and a sparse low "dread pulse". Lookahead scheduler keeps timing tight.
 export function createMusic() {
   const AC = window.AudioContext || window.webkitAudioContext;
   let ctx = null;
   let master = null;
-  let noiseBuf = null;
   let playing = false;
   let enabled = true;
   let step = 0;
   let nextTime = 0;
   let timer = null;
+  let drone = []; // persistent nodes (stopped on stop())
 
-  const BPM = 142;
-  const eighth = 60 / BPM / 2;           // seconds per 8th note
-  const LEN = 32;                         // 4 bars of 8 eighth-notes
-  const ROOTS = [36, 43, 45, 41];        // C2, G2, A2, F2 (one per bar) — I V vi IV
-  // Lead melody in C major (MIDI note per 8th note; 0 = rest).
-  const LEAD = [
-    76, 0, 72, 76, 79, 0, 76, 0,   // C
-    74, 0, 71, 74, 79, 0, 74, 0,   // G
-    72, 0, 76, 81, 79, 0, 76, 0,   // Am
-    77, 0, 72, 77, 81, 0, 79, 0,   // F
-  ];
-
+  const BPM = 74;
+  const stepDur = 60 / BPM;     // one quarter-note per step
+  const LEN = 16;               // 4 bars
+  // Eerie, sparse motif (MIDI; 0 = rest). A harmonic minor incl. G# leading tone.
+  const MEL = [69, 0, 72, 0, 71, 0, 68, 0, 65, 0, 67, 0, 64, 0, 0, 0];
   const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
   function ensure() {
     if (!ctx) {
       ctx = new AC();
       master = ctx.createGain();
-      master.gain.value = 0.38;
+      master.gain.value = 0.5;
       master.connect(ctx.destination);
     }
     return ctx;
   }
 
-  function tone(freq, t, dur, type, peak) {
+  // Music-box / celesta-ish bell with an inharmonic shimmer and long decay.
+  function bell(freq, t, gain) {
     const o = ctx.createOscillator();
+    const o2 = ctx.createOscillator();
     const g = ctx.createGain();
-    o.type = type;
-    o.frequency.value = freq;
+    const lp = ctx.createBiquadFilter();
+    o.type = 'triangle'; o.frequency.value = freq;
+    o2.type = 'sine'; o2.frequency.value = freq * 2.01; // slightly detuned partial = unsettling
+    lp.type = 'lowpass'; lp.frequency.value = 2600;
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(peak, t + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g).connect(master);
-    o.start(t);
-    o.stop(t + dur + 0.02);
+    g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+    o.connect(g); o2.connect(g); g.connect(lp).connect(master);
+    o.start(t); o2.start(t); o.stop(t + 1.9); o2.stop(t + 1.9);
   }
 
-  function kick(t) {
+  // Low dread pulse (slow heartbeat-ish thud).
+  function boom(t) {
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = 'sine';
-    o.frequency.setValueAtTime(150, t);
-    o.frequency.exponentialRampToValueAtTime(45, t + 0.11);
-    g.gain.setValueAtTime(0.18, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+    o.frequency.setValueAtTime(72, t);
+    o.frequency.exponentialRampToValueAtTime(34, t + 0.5);
+    g.gain.setValueAtTime(0.13, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
     o.connect(g).connect(master);
-    o.start(t);
-    o.stop(t + 0.15);
+    o.start(t); o.stop(t + 0.65);
   }
 
-  function hat(t) {
-    if (!noiseBuf) {
-      noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.2), ctx.sampleRate);
-      const d = noiseBuf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    }
-    const s = ctx.createBufferSource();
-    s.buffer = noiseBuf;
-    const hp = ctx.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 7000;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.05, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-    s.connect(hp).connect(g).connect(master);
-    s.start(t);
-    s.stop(t + 0.06);
+  function startDrone() {
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 320;
+    const lfo = ctx.createOscillator();
+    const lfoG = ctx.createGain();
+    lfo.frequency.value = 0.07; lfoG.gain.value = 130; // slow filter sweep = "breathing"
+    lfo.connect(lfoG).connect(lp.frequency);
+    const dg = ctx.createGain();
+    dg.gain.value = 0.10;
+    lp.connect(dg).connect(master);
+    const oscs = [55, 55.4, 82.41].map((f) => { // A1, detuned A1 (beating), E2
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth'; o.frequency.value = f;
+      o.connect(lp); o.start();
+      return o;
+    });
+    lfo.start();
+    drone = [...oscs, lfo];
   }
 
   function scheduleStep(s, t) {
-    const within = s % 8;
-    const root = ROOTS[Math.floor(s / 8) % 4];
-    const ln = LEAD[s % LEN];
-    if (ln) tone(midi(ln), t, eighth * 0.9, 'square', 0.06);
-    const bass = within % 2 === 0 ? root : root + 12; // root / octave bounce
-    tone(midi(bass), t, eighth * 0.95, 'triangle', 0.11);
-    if (within === 0 || within === 4) kick(t);
-    if (within % 2 === 1) hat(t);
+    const n = MEL[s % LEN];
+    if (n) bell(midi(n), t, 0.085);
+    if (s % 8 === 0) boom(t); // twice per loop
   }
 
   function loop() {
-    while (nextTime < ctx.currentTime + 0.12) {
+    while (nextTime < ctx.currentTime + 0.2) {
       scheduleStep(step, nextTime);
-      nextTime += eighth;
+      nextTime += stepDur;
       step = (step + 1) % LEN;
     }
-    timer = setTimeout(loop, 25);
+    timer = setTimeout(loop, 40);
   }
 
   return {
@@ -108,22 +100,18 @@ export function createMusic() {
       if (ctx.state === 'suspended') ctx.resume();
       playing = true;
       step = 0;
-      nextTime = ctx.currentTime + 0.06;
+      nextTime = ctx.currentTime + 0.1;
+      startDrone();
       loop();
     },
     stop() {
       playing = false;
       clearTimeout(timer);
+      drone.forEach((o) => { try { o.stop(); } catch { /* already stopped */ } try { o.disconnect(); } catch { /* noop */ } });
+      drone = [];
     },
     isEnabled() { return enabled; },
-    setEnabled(on) {
-      enabled = on;
-      if (!on) this.stop();
-    },
-    toggle() {
-      enabled = !enabled;
-      if (enabled) this.start(); else this.stop();
-      return enabled;
-    },
+    setEnabled(on) { enabled = on; if (!on) this.stop(); },
+    toggle() { enabled = !enabled; if (enabled) this.start(); else this.stop(); return enabled; },
   };
 }
