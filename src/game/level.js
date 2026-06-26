@@ -49,8 +49,16 @@ export function createLevelRuntime(levelData) {
     update(dt, camera, player, audio) {
       const spawnX = camera.x + VW + 100;
       const { spawned, nextIndex } = entitiesToSpawn(levelData.entities, spawnX, this.idx);
-      // Correction A: push live clones, not shared blueprints
-      for (const e of spawned) this.active.push(makeLive(e));
+      // Correction A: push live clones, not shared blueprints. Also play an arrival
+      // sound once per enemy kind spawning this frame (a bat wave -> a single screech).
+      const arrived = new Set();
+      for (const e of spawned) {
+        this.active.push(makeLive(e));
+        if (e.type === 'bat' || e.type === 'snake' || e.type === 'spirit') arrived.add(e.type);
+      }
+      if (arrived.has('snake')) audio.snake();
+      if (arrived.has('bat')) audio.bat();
+      if (arrived.has('spirit')) audio.spirit();
       this.idx = nextIndex;
 
       let died = false;
