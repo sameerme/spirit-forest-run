@@ -132,7 +132,6 @@ function newGame(startLevel = 0) {
     high: prog.high,
     newHigh: false,   // set when this run beats the stored high
     baseCoins: loadMeta(store).coins, // coins banked before this run (for HUD total)
-    dustT: 0,         // running-dust spawn timer
     sceneTimer: 0,
   };
 }
@@ -200,14 +199,6 @@ function update(dt) {
       fx.shake(12);
       fx.burst(ev.x, ev.y, COLORS.heart, 18, 300);
     }
-  }
-
-  // Running dust at the feet while grounded — sells the run on a single-frame sprite.
-  if (game.player.grounded) {
-    game.dustT -= dt;
-    if (game.dustT <= 0) { game.dustT = 0.08; fx.burst(PLAYER_X - 2, GROUND_TOP, '#cba86a', 5, 110); }
-  } else {
-    game.dustT = 0;
   }
 
   // Score: distance progressed + sphere/stomp bonus (starts at 0, only climbs).
@@ -458,7 +449,7 @@ async function boot() {
   } catch { /* fall back to system Odia font */ }
   assets = await loadAssets();
   anims = {
-    run: createSprite(2, 9), // 2 opposite-stride run frames, swapped ~4.5x/sec
+    run: createSprite(3, 11), // 3 run frames (wide-contact + two strides)
     dash: createSprite(4, 14),
     betaal: createSprite(4, 6),
   };
