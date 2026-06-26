@@ -1,0 +1,16 @@
+{
+  "name": "Spirit Forest Run — Bikram & the Betaal",
+  "short_name": "Spirit Forest",
+  "description": "An 8-bit comic auto-runner. Run as King Bikram and capture the Betaal!",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07050f",
+  "theme_color": "#0b0a1f",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
