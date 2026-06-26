@@ -54,6 +54,7 @@ export function createLevelRuntime(levelData) {
       this.idx = nextIndex;
 
       let died = false;
+      let supported = false; // is the player resting on a platform this frame?
       this.events = []; // {type:'sphere'|'stomp'|'hit', x, y} in SCREEN coords for fx
       const px = camera.x + PLAYER_X;
       const pBox = { x: px, y: player.y, w: player.w, h: player.h };
@@ -69,10 +70,14 @@ export function createLevelRuntime(levelData) {
             this.events.push({ type: 'sphere', x: ex, y: wb.y + wb.h / 2 });
           }
         } else if (e.type === 'platform') {
-          const falling = player.vy > 0;
+          // land on / stay on the platform top while descending or resting on it
+          const descending = player.vy >= 0;
           const overTop = pBox.x + pBox.w > wb.x && pBox.x < wb.x + wb.w;
-          const atTop = player.y + player.h >= wb.y && player.y + player.h <= wb.y + 28;
-          if (falling && overTop && atTop) { player.y = wb.y - player.h; player.vy = 0; player.grounded = true; player.jumpsUsed = 0; this.pitFalling = false; }
+          const atTop = player.y + player.h >= wb.y - 2 && player.y + player.h <= wb.y + 28;
+          if (descending && overTop && atTop) {
+            player.y = wb.y - player.h; player.vy = 0; player.grounded = true; player.jumpsUsed = 0;
+            this.pitFalling = false; supported = true;
+          }
         } else if (e.type === 'snake' || e.type === 'bat' || e.type === 'spirit') {
           if (aabbOverlap(pBox, wb)) {
             if (player.isInvincible()) {
@@ -84,6 +89,12 @@ export function createLevelRuntime(levelData) {
             }
           }
         }
+      }
+
+      // Walked off a platform: if standing above the ground with no platform under
+      // the player any more, drop them so they fall back down (gravity + floorFor).
+      if (player.grounded && !supported && player.y + player.h < GROUND_TOP - 2) {
+        player.grounded = false;
       }
 
       // prune entities fully off the left edge

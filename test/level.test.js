@@ -58,3 +58,29 @@ test('jumping at the pit edge saves the player (no commit to falling)', () => {
   assert.ok(player.y < STAND_Y, 'jump lifted the player above ground at the ledge');
   assert.equal(rt.pitFalling, false, 'a successful jump does not commit to a pit fall');
 });
+
+test('player falls back to the ground after crossing a platform', () => {
+  const player = createPlayer();
+  const camera = createCamera();
+  const platY = GROUND_TOP - 150;
+  const level = {
+    speed: 200, minGap: 0, length: 100000, goalX: 99999,
+    entities: [{ type: 'platform', worldX: PLAYER_X - 20, w: 180, y: platY }],
+  };
+  const rt = createLevelRuntime(level);
+  // start the player standing on the platform
+  player.y = platY - PLAYER_H; player.vy = 0; player.grounded = true;
+
+  let stoodOnPlatform = false;
+  let landedGround = false;
+  for (let i = 0; i < 300; i++) {
+    camera.update(1 / 60, level.speed);
+    const floor = rt.floorFor(camera, player);
+    player.update(1 / 60, floor);
+    rt.update(1 / 60, camera, player, audio);
+    if (player.grounded && Math.abs((player.y + PLAYER_H) - platY) < 1) stoodOnPlatform = true;
+    if (player.grounded && Math.abs((player.y + PLAYER_H) - GROUND_TOP) < 1) { landedGround = true; break; }
+  }
+  assert.ok(stoodOnPlatform, 'player should rest on the platform first');
+  assert.ok(landedGround, 'player should fall to the ground after leaving the platform');
+});
