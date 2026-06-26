@@ -458,7 +458,7 @@ async function boot() {
   } catch { /* fall back to system Odia font */ }
   assets = await loadAssets();
   anims = {
-    run: createSprite(3, 12), // 3 real run frames, cycled ~4x/sec
+    run: createSprite(2, 9), // 2 opposite-stride run frames, swapped ~4.5x/sec
     dash: createSprite(4, 14),
     betaal: createSprite(4, 6),
   };
