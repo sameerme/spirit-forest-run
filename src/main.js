@@ -36,15 +36,23 @@ const audio = createAudio();
 const music = createMusic();
 const store = window.localStorage;
 
-// Restore the music on/off preference and wire the mute toggle.
-if (store.getItem('sfr-music') === '0') music.setEnabled(false);
-muteBtn.textContent = music.isEnabled() ? '🔊' : '🔇';
+// Global sound toggle — controls BOTH music and sound effects.
+let soundOn = store.getItem('sfr-sound') !== '0';
+function applySound() {
+  music.setEnabled(soundOn);
+  if (soundOn) music.start(); else music.stop();
+  audio.setMuted(!soundOn);
+  muteBtn.textContent = soundOn ? '🔊' : '🔇';
+}
+music.setEnabled(soundOn);
+audio.setMuted(!soundOn);
+muteBtn.textContent = soundOn ? '🔊' : '🔇';
 muteBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
 muteBtn.addEventListener('click', (e) => {
   e.stopPropagation();
-  const on = music.toggle();
-  store.setItem('sfr-music', on ? '1' : '0');
-  muteBtn.textContent = on ? '🔊' : '🔇';
+  soundOn = !soundOn;
+  store.setItem('sfr-sound', soundOn ? '1' : '0');
+  applySound();
 });
 
 const SHARE_URL = 'https://sameerme.github.io/spirit-forest-run/';
