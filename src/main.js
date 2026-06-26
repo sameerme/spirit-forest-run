@@ -304,15 +304,13 @@ function drawPlayer() {
   const cx = PLAYER_X - 6 + dw / 2;     // sprite centre
   const feet = p.y - 8 + dh + 10;       // ground-contact line (nudged down so feet plant)
 
-  // Fake a run with a bouncing gait + slight body rock while grounded; a forward
-  // lean while airborne. (Single-frame sprite, so the motion sells the running.)
+  // Fake a run with a bouncing gait + slight body rock while grounded. Stay
+  // upright while airborne. (Single-frame sprite, so the motion sells the running.)
   let bob = 0, rot = 0;
   const ph = performance.now() / 1000 * 16;
   if (p.grounded && game.scene === SCENE.PLAY) {
     bob = -Math.abs(Math.sin(ph)) * 6;  // bounce up off the ground
     rot = Math.sin(ph) * 0.05;          // gentle rock
-  } else if (!p.grounded) {
-    rot = p.vy < 0 ? -0.12 : 0.10;      // lean into the jump / fall
   }
 
   ctx.save();
