@@ -5,7 +5,7 @@ import { createPlayer } from '../src/game/player.js';
 import { createCamera } from '../src/engine/camera.js';
 import { GROUND_TOP, PLAYER_H, PLAYER_X, VH, TILE } from '../src/constants.js';
 
-const audio = { jump() {}, hit() {}, sphere() {}, win() {}, resume() {} };
+const audio = { jump() {}, hit() {}, sphere() {}, win() {}, resume() {}, snake() {}, bat() {}, spirit() {} };
 const STAND_Y = GROUND_TOP - PLAYER_H;
 
 function pitLevel() {
