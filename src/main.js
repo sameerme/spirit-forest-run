@@ -417,63 +417,42 @@ function drawPlayer() {
   ctx.restore();
 }
 
-// The level goal: a spooky tree with Betaal hanging upside-down from a branch
-// (the Vetala legend). Bikram reaches it -> BETAAL CAPTURED.
+// The level goal: a generated spooky tree with Betaal hanging upside-down.
+// Bikram reaches it -> BETAAL CAPTURED.
 function drawGoal() {
   const lvl = LEVELS[game.levelIndex];
   const sx = lvl.goalX - game.camera.x;
-  if (sx > VW + 280 || sx < -280) return;
-  const tx = sx + 60; // trunk centre, a touch ahead of the goal line
-  ctx.save();
-  // trunk (tapering)
-  ctx.fillStyle = '#2c2030';
-  ctx.beginPath();
-  ctx.moveTo(tx - 20, GROUND_TOP); ctx.lineTo(tx - 11, GROUND_TOP - 300);
-  ctx.lineTo(tx + 11, GROUND_TOP - 300); ctx.lineTo(tx + 20, GROUND_TOP);
-  ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = COLORS.ink; ctx.lineWidth = 3; ctx.stroke();
-  // branch reaching left, where Betaal hangs
-  const bxEnd = tx - 86, byEnd = GROUND_TOP - 252;
-  ctx.lineCap = 'round'; ctx.strokeStyle = '#2c2030'; ctx.lineWidth = 14;
-  ctx.beginPath(); ctx.moveTo(tx - 6, GROUND_TOP - 262); ctx.lineTo(bxEnd, byEnd); ctx.stroke();
-  // canopy
-  for (const [bx, by, r] of [[tx, -332, 92], [tx - 62, -302, 66], [tx + 62, -302, 66], [tx, -384, 72]]) {
-    ctx.fillStyle = '#15321f';
-    ctx.beginPath(); ctx.ellipse(bx, GROUND_TOP + by, r, r * 0.8, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = COLORS.ink; ctx.lineWidth = 2; ctx.stroke();
-  }
-  // Betaal hanging UPSIDE-DOWN from the branch tip, swaying gently.
-  const a = assets.get('betaal_idle');
-  const scale = 0.78, bw = a.meta.fw * scale, bh = a.meta.fh * scale;
-  ctx.translate(bxEnd, byEnd);
-  ctx.rotate(Math.sin(performance.now() / 600) * 0.12); // sway
-  ctx.scale(1, -1); // vertical flip -> feet at the branch, head hanging down
-  ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, -bw / 2, -bh, bw, bh);
-  ctx.restore();
+  if (sx > VW + 420 || sx < -420) return;
+  const a = assets.get('goal_tree');
+  const h = 520, w = h * (a.meta.fw / a.meta.fh);
+  ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, sx + 30 - w / 2, GROUND_TOP - h, w, h);
 }
 
-// Intro cinematic: Betaal perched on Bikram's shoulder, then it flaps away to
-// the right and vanishes. `p` is 0..1 progress through the intro.
-function drawIntroBetaal(p) {
-  const player = game.player;
-  const a = assets.get('betaal_idle');
-  const base = 0.5, bw = a.meta.fw * base, bh = a.meta.fh * base;
-  const shoulderX = PLAYER_X + player.w * 0.58;
-  const shoulderY = player.y - bh * 0.25;
-  const PERCH = 0.32;
-  let bx, by, alpha = 1, sc = 1;
-  if (p < PERCH) {
-    bx = shoulderX; by = shoulderY + Math.sin(performance.now() / 170) * 3;
+// Level intro: a composite start frame (Betaal piggybacking on Bikram, standing
+// still), then Betaal lifts off and soars away while Bikram stands ready. 0..1.
+function drawIntro(p) {
+  if (p < 0.40) {
+    const a = assets.get('intro_start');
+    const h = 250, w = h * (a.meta.fw / a.meta.fh);
+    const bob = Math.sin(performance.now() / 320) * 2;
+    ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, PLAYER_X - w * 0.34, GROUND_TOP - h + bob, w, h);
   } else {
-    const q = Math.min(1, (p - PERCH) / (1 - PERCH));
-    bx = shoulderX + q * (VW + 150 - shoulderX);
-    by = shoulderY - Math.sin(q * Math.PI * 0.6) * 90 - q * 40 + Math.sin(performance.now() / 90) * 4;
-    alpha = q < 0.72 ? 1 : Math.max(0, 1 - (q - 0.72) / 0.28);
-    sc = 1 - q * 0.25;
+    drawPlayer();
+    drawFlyBetaal((p - 0.40) / 0.60);
   }
+}
+
+function drawFlyBetaal(q) {
+  const player = game.player;
+  const shoulderX = PLAYER_X + player.w * 0.6, shoulderY = player.y - 10;
+  const key = q < 0.18 ? 'betaal_liftoff' : 'betaal_fly';
+  const h = q < 0.18 ? 122 : 134;
+  const bx = shoulderX + q * (VW + 180 - shoulderX);
+  const by = (shoulderY - 40) - Math.sin(q * Math.PI * 0.6) * 100 - q * 50 + Math.sin(performance.now() / 90) * 4;
+  const alpha = q < 0.75 ? 1 : Math.max(0, 1 - (q - 0.75) / 0.25);
+  const a = assets.get(key), w = h * (a.meta.fw / a.meta.fh);
   ctx.save();
   ctx.globalAlpha = alpha;
-  const w = bw * sc, h = bh * sc;
   ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, bx - w / 2, by - h / 2, w, h);
   ctx.restore();
 }
@@ -512,8 +491,7 @@ function render() {
     game.boss.draw(ctx, assets);
     drawPlayer();
   } else if (game.scene === SCENE.LEVEL) {
-    drawPlayer(); // Bikram ready at the start line
-    drawIntroBetaal(1 - game.sceneTimer / INTRO_MS);
+    drawIntro(1 - game.sceneTimer / INTRO_MS);
   }
   ctx.restore();
   applyComic(ctx, VW, VH);
