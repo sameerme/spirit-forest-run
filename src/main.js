@@ -424,32 +424,43 @@ function drawGoal() {
   const sx = lvl.goalX - game.camera.x;
   if (sx > VW + 420 || sx < -420) return;
   const a = assets.get('goal_tree');
-  const h = 520, w = h * (a.meta.fw / a.meta.fh);
+  const h = 260, w = h * (a.meta.fw / a.meta.fh);
   ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, sx + 30 - w / 2, GROUND_TOP - h, w, h);
 }
 
 // Level intro: a composite start frame (Betaal piggybacking on Bikram, standing
-// still), then Betaal lifts off and soars away while Bikram stands ready. 0..1.
+// still) that dissolves into the running Bikram while Betaal gently lifts off
+// and soars away. `p` is 0..1. The crossfade keeps the lift-off soft.
 function drawIntro(p) {
-  if (p < 0.40) {
-    const a = assets.get('intro_start');
-    const h = 250, w = h * (a.meta.fw / a.meta.fh);
-    const bob = Math.sin(performance.now() / 320) * 2;
-    ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, PLAYER_X - w * 0.34, GROUND_TOP - h + bob, w, h);
-  } else {
+  const FADE0 = 0.34, FADE1 = 0.50;
+  // live layer: running Bikram + flying Betaal, eased in from FADE0
+  if (p >= FADE0) {
     drawPlayer();
-    drawFlyBetaal((p - 0.40) / 0.60);
+    drawFlyBetaal((p - FADE0) / (1 - FADE0));
+  }
+  // piggyback composite on top, fading out so it dissolves into the live Bikram
+  if (p < FADE1) {
+    const a = assets.get('intro_start');
+    const h = 125, w = h * (a.meta.fw / a.meta.fh);
+    const bob = Math.sin(performance.now() / 320) * 2;
+    const alpha = p < FADE0 ? 1 : Math.max(0, 1 - (p - FADE0) / (FADE1 - FADE0));
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, PLAYER_X - w * 0.34, GROUND_TOP - h + bob, w, h);
+    ctx.restore();
   }
 }
 
 function drawFlyBetaal(q) {
   const player = game.player;
-  const shoulderX = PLAYER_X + player.w * 0.6, shoulderY = player.y - 10;
-  const key = q < 0.18 ? 'betaal_liftoff' : 'betaal_fly';
-  const h = q < 0.18 ? 122 : 134;
-  const bx = shoulderX + q * (VW + 180 - shoulderX);
-  const by = (shoulderY - 40) - Math.sin(q * Math.PI * 0.6) * 100 - q * 50 + Math.sin(performance.now() / 90) * 4;
-  const alpha = q < 0.75 ? 1 : Math.max(0, 1 - (q - 0.75) / 0.25);
+  const shoulderX = PLAYER_X + player.w * 0.6, shoulderY = player.y - 8;
+  const e = q * q; // ease-in: a soft, slow lift that then accelerates away
+  const key = q < 0.30 ? 'betaal_liftoff' : 'betaal_fly';
+  const h = q < 0.30 ? 96 : 110;
+  const bx = shoulderX + e * (VW + 180 - shoulderX);
+  const rise = q < 0.30 ? q * 70 : 21 + (q - 0.30) * 150;
+  const by = shoulderY - rise + Math.sin(performance.now() / 120) * 3;
+  const alpha = q < 0.78 ? 1 : Math.max(0, 1 - (q - 0.78) / 0.22);
   const a = assets.get(key), w = h * (a.meta.fw / a.meta.fh);
   ctx.save();
   ctx.globalAlpha = alpha;

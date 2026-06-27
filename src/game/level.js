@@ -29,8 +29,8 @@ export function createLevelRuntime(levelData, levelIndex = 0) {
     spheres: 0,
     pitFalling: false,
     furyFireCd: 0,                        // gap timer before a fury fire may (re)appear
-    furyQuota: furyAllowance(levelIndex), // how many furies this level allows
-    furyUsed: 0,                          // furies collected this level
+    furyQuota: furyAllowance(levelIndex), // fury fires this level allows (1/2/3 by band)
+    furySpawned: 0,                       // fury fires that have appeared this level
 
     // Effective floor under the player for this frame. Over a pit gap there is no
     // floor (the player falls); on solid ground / a platform it's GROUND_TOP.
@@ -74,8 +74,9 @@ export function createLevelRuntime(levelData, levelIndex = 0) {
       // jump). One at a time, capped to this level's fury allowance.
       this.furyFireCd -= dt;
       const hasFire = this.active.some((e) => e.type === 'fury' && !e.taken && !e.consumed);
-      if (this.furyUsed < this.furyQuota && player.canFury() && player.fury <= 0 && !hasFire && this.furyFireCd <= 0) {
+      if (this.furySpawned < this.furyQuota && player.canFury() && player.fury <= 0 && !hasFire && this.furyFireCd <= 0) {
         this.active.push(makeLive(createFire(camera.x + VW + 120, FURY_FIRE_Y)));
+        this.furySpawned += 1; // appears at most quota times per level (caught or missed)
         this.furyFireCd = FURY_FIRE_RESPAWN_S;
       }
 
@@ -104,7 +105,7 @@ export function createLevelRuntime(levelData, levelIndex = 0) {
         } else if (e.type === 'fury') {
           if (aabbOverlap(pBox, wb)) {
             e.taken = true;
-            if (player.startFury()) { this.furyUsed += 1; this.events.push({ type: 'furyget', x: ex, y: wb.y + wb.h / 2 }); }
+            if (player.startFury()) this.events.push({ type: 'furyget', x: ex, y: wb.y + wb.h / 2 });
           }
         } else if (e.type === 'platform') {
           // land on / stay on the platform top while descending or resting on it
