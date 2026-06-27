@@ -21,7 +21,6 @@ const ctx = canvas.getContext('2d');
 const shareBtn = document.getElementById('shareBtn');
 const dlBtn = document.getElementById('dlBtn');
 const muteBtn = document.getElementById('muteBtn');
-const furyBtn = document.getElementById('furyBtn');
 const reviveBtn = document.getElementById('reviveBtn');
 const reviveTarangBtn = document.getElementById('reviveTarangBtn');
 const toastEl = document.getElementById('toast');
@@ -51,11 +50,6 @@ function applySound() {
 music.setEnabled(soundOn);
 audio.setMuted(!soundOn);
 muteBtn.textContent = soundOn ? '🔊' : '🔇';
-furyBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-furyBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (game.scene === SCENE.PLAY && game.player.startFury()) { fx.shake(8); }
-});
 [reviveBtn, reviveTarangBtn].forEach((b) => b.addEventListener('pointerdown', (e) => e.stopPropagation()));
 reviveBtn.addEventListener('click', (e) => { e.stopPropagation(); if (game.scene === SCENE.REVIVE) revive(false); });
 reviveTarangBtn.addEventListener('click', (e) => { e.stopPropagation(); if (game.scene === SCENE.REVIVE) revive(true); });
@@ -232,6 +226,10 @@ function update(dt) {
     } else if (ev.type === 'shieldget') {
       fx.burst(ev.x, ev.y, COLORS.energy, 18);
       fx.popup(ev.x, ev.y - 8, 'SHIELD!', COLORS.energy);
+    } else if (ev.type === 'furyget') {
+      fx.shake(8);
+      fx.burst(ev.x, ev.y, COLORS.bikram, 22, 260);
+      fx.popup(ev.x, ev.y - 8, 'FURY!', COLORS.bikram);
     } else if (ev.type === 'hit') {
       game.combo = 1; // break the chain
       fx.shake(12);
@@ -428,8 +426,6 @@ function render() {
   if (shareBtn.hidden === showEnd) shareBtn.hidden = !showEnd;
   if (dlBtn.hidden === showEnd) dlBtn.hidden = !showEnd;
   if (!showEnd && !toastEl.hidden) toastEl.hidden = true;
-  const showFury = game.scene === SCENE.PLAY && game.player.canFury();
-  if (furyBtn.hidden === showFury) furyBtn.hidden = !showFury;
   // Continue buttons on the revive screen.
   const onRevive = game.scene === SCENE.REVIVE;
   const showCoin = onRevive && canCoinRevive();

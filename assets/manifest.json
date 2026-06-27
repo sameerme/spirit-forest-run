@@ -9,6 +9,7 @@
   "bat":            { "file": "bat.png",            "frames": 1, "fw": 90,   "fh": 70 },
   "spirit":         { "file": "spirit.png",         "frames": 1, "fw": 110,  "fh": 130 },
   "sphere":         { "file": "sphere.png",         "frames": 1, "fw": 70,   "fh": 70 },
+  "fury_fire":      { "file": "fury_fire.png",      "frames": 1, "fw": 128,  "fh": 128 },
   "ground_tile":    { "file": "ground_tile.png",    "frames": 1, "fw": 60,   "fh": 60 },
   "ground_edge":    { "file": "ground_edge.png",    "frames": 1, "fw": 60,   "fh": 60 },
   "platform_log":   { "file": "platform_log.png",   "frames": 1, "fw": 180,  "fh": 60 },

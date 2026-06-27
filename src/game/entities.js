@@ -20,6 +20,10 @@ export function createShield(worldX, y) {
   // protective power-up; gentle bob via the generic amp/sin path in updateEntity
   return { type: 'shield', worldX, y, baseY: y, amp: 14, freq: 0.6, t: 0, w: 46, h: 46, taken: false };
 }
+export function createFire(worldX, y) {
+  // Fury fire pickup; bobs gently. Collected only when the energy bar is full.
+  return { type: 'fury', worldX, y, baseY: y, amp: 12, freq: 0.9, t: 0, w: 52, h: 60, taken: false };
+}
 export function createPit(worldX, tiles) {
   return { type: 'pit', worldX, tiles, w: tiles * TILE, h: TILE * 2 };
 }

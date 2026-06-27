@@ -49,22 +49,6 @@ html { -webkit-tap-highlight-color: transparent; }
 }
 .mute-btn:active { transform: scale(0.92); }
 
-/* ---- Fury button (appears mid-run when the energy bar is full) ---- */
-.fury-btn {
-  position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%);
-  font-family: "Bangers", system-ui, sans-serif; font-size: 1.6rem; letter-spacing: 0.06em;
-  color: #2a1200; background: #ff9a2a; border: 3px solid #141019; border-radius: 14px;
-  padding: 10px 26px; cursor: pointer; z-index: 13; white-space: nowrap;
-  box-shadow: 0 4px 0 #8a3a00, 0 0 18px rgba(255,150,40,0.8);
-  -webkit-tap-highlight-color: transparent; animation: furyPulse 0.7s ease-in-out infinite;
-}
-.fury-btn[hidden] { display: none; }
-.fury-btn:active { transform: translateX(-50%) translateY(2px); box-shadow: 0 2px 0 #8a3a00; }
-@keyframes furyPulse {
-  0%, 100% { box-shadow: 0 4px 0 #8a3a00, 0 0 14px rgba(255,150,40,0.6); }
-  50% { box-shadow: 0 4px 0 #8a3a00, 0 0 26px rgba(255,190,80,1); }
-}
-
 /* ---- Continue / revive buttons (shown on the CONTINUE? screen) ---- */
 .revive-btn, .revive-tarang-btn {
   position: absolute; left: 50%; transform: translateX(-50%);

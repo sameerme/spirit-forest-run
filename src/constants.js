@@ -30,6 +30,13 @@ export const SHIELD_SPAWN_MAX_S = 42;
 export const REVIVE_COST_BASE = 50;   // coin cost of the 1st revive (doubles each time)
 export const REVIVE_INVULN_MS = 2200; // grace i-frames granted on revive
 
+// ---- Fury fire pickup (reachable only with a double jump) ----
+export const FURY_FIRE_Y = GROUND_TOP - 430; // high enough to need a 2nd jump
+export const FURY_FIRE_RESPAWN_S = 2.5;      // gap before another fire appears
+// ---- Enemy death (stomp/kill) shrink-and-fall, Mario-style ----
+export const DEATH_MS = 480;          // shrink/fade duration
+export const DEATH_FALL = 320;        // px/s the dying enemy drops while shrinking
+
 export const COMBO_CAP = 6;          // max sphere score multiplier
 export const COIN_PER_SPHERE = 1;    // coins banked per sphere
 export const ENERGY_MAX = 100;

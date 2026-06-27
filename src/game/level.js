@@ -1,13 +1,14 @@
 import {
   PLAYER_X, ENERGY_PER_SPHERE, GROUND_TOP, VW, VH,
   KILL_ENERGY, SHIELD_SPAWN_MIN_S, SHIELD_SPAWN_MAX_S,
+  FURY_FIRE_Y, FURY_FIRE_RESPAWN_S, DEATH_MS, DEATH_FALL,
 } from '../constants.js';
 
 const NO_FLOOR = 100000; // effective "ground" when the player is over a pit gap
 import { aabbOverlap } from '../engine/physics.js';
 import { createSprite, frameRect } from '../engine/sprite.js';
 import { entitiesToSpawn } from './spawner.js';
-import { worldBox, updateEntity, createShield } from './entities.js';
+import { worldBox, updateEntity, createShield, createFire } from './entities.js';
 
 const shieldInterval = () => SHIELD_SPAWN_MIN_S + Math.random() * (SHIELD_SPAWN_MAX_S - SHIELD_SPAWN_MIN_S);
 
@@ -28,6 +29,7 @@ export function createLevelRuntime(levelData) {
     spheres: 0,
     pitFalling: false,
     shieldTimer: shieldInterval(), // seconds until the next shield power-up spawns
+    furyFireCd: 0, // gap timer before a fury fire may (re)appear
 
     // Effective floor under the player for this frame. Over a pit gap there is no
     // floor (the player falls); on solid ground / a platform it's GROUND_TOP.
@@ -75,6 +77,15 @@ export function createLevelRuntime(levelData) {
         this.shieldTimer = shieldInterval();
       }
 
+      // When the energy bar is full, float a fury fire up high (needs a double
+      // jump). One at a time, with a small gap before it can reappear.
+      this.furyFireCd -= dt;
+      const hasFire = this.active.some((e) => e.type === 'fury' && !e.taken && !e.consumed);
+      if (player.canFury() && player.fury <= 0 && !hasFire && this.furyFireCd <= 0) {
+        this.active.push(makeLive(createFire(camera.x + VW + 120, FURY_FIRE_Y)));
+        this.furyFireCd = FURY_FIRE_RESPAWN_S;
+      }
+
       let died = false;
       let supported = false; // is the player resting on a platform this frame?
       this.events = []; // {type:'sphere'|'stomp'|'hit', x, y} in SCREEN coords for fx
@@ -82,6 +93,12 @@ export function createLevelRuntime(levelData) {
       const pBox = { x: px, y: player.y, w: player.w, h: player.h };
 
       for (const e of this.active) {
+        // Dying enemy: shrink + fall (no collision), then remove. Mario-style.
+        if (e.dying) {
+          e.deathT += dt; e.y += DEATH_FALL * dt;
+          if (e.deathT >= DEATH_MS / 1000) e.consumed = true;
+          continue;
+        }
         updateEntity(e, dt);
         if (e.consumed || e.taken) continue;
         const wb = worldBox(e);
@@ -90,6 +107,11 @@ export function createLevelRuntime(levelData) {
           if (aabbOverlap(pBox, wb)) {
             e.taken = true; player.addEnergy(ENERGY_PER_SPHERE); this.spheres++; audio.sphere();
             this.events.push({ type: 'sphere', x: ex, y: wb.y + wb.h / 2 });
+          }
+        } else if (e.type === 'fury') {
+          if (aabbOverlap(pBox, wb)) {
+            e.taken = true;
+            if (player.startFury()) this.events.push({ type: 'furyget', x: ex, y: wb.y + wb.h / 2 });
           }
         } else if (e.type === 'shield') {
           if (aabbOverlap(pBox, wb)) {
@@ -111,7 +133,7 @@ export function createLevelRuntime(levelData) {
             const stomp = player.vy > 0 && (pBox.y + pBox.h) <= wb.y + wb.h * 0.6;
             const offensive = player.dash > 0 || player.fury > 0; // sword strike / fury
             if (offensive || stomp) {
-              e.consumed = true;
+              e.dying = true; e.deathT = 0; // shrink + fall, then remove
               player.addEnergy(KILL_ENERGY);
               if (stomp && !offensive) player.bounce();
               audio.slash();
@@ -163,11 +185,29 @@ export function createLevelRuntime(levelData) {
           ctx.restore();
           continue;
         }
+        if (e.type === 'fury') {
+          const a = assets.get('fury_fire');
+          const flick = 1 + 0.08 * Math.sin((e.t || 0) * 12);
+          const dw = (e.w + 34) * flick, dh = (e.h + 42) * flick;
+          const cx = sx + e.w / 2, cy = e.y + e.h / 2, r = dh * 0.72;
+          ctx.save();
+          const g = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+          g.addColorStop(0, 'rgba(255,205,95,0.55)'); g.addColorStop(1, 'rgba(255,120,20,0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+          ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, cx - dw / 2, cy - dh / 2, dw, dh);
+          ctx.restore();
+          continue;
+        }
         const key = e.type === 'platform' ? 'platform_log' : e.type;
         const a = assets.get(key);
         const fr = a.meta.frames > 1 && e.anim ? frameRect(a.meta, e.anim.frame % a.meta.frames) : { sx: 0, sy: 0, sw: a.meta.fw, sh: a.meta.fh };
-        if (e.type === 'spirit') ctx.globalAlpha = 0.8;
-        ctx.drawImage(a.img, fr.sx, fr.sy, fr.sw, fr.sh, sx, e.y, e.w + 8, e.h + 8);
+        // Dying enemies shrink + fade toward their centre (Mario-style death).
+        const scale = e.dying ? Math.max(0, 1 - e.deathT / (DEATH_MS / 1000)) : 1;
+        const bw = e.w + 8, bh = e.h + 8, dw = bw * scale, dh = bh * scale;
+        const dx = sx + (bw - dw) / 2, dy = e.y + (bh - dh) / 2;
+        if (e.type === 'spirit') ctx.globalAlpha = 0.8 * scale;
+        else if (e.dying) ctx.globalAlpha = scale;
+        ctx.drawImage(a.img, fr.sx, fr.sy, fr.sw, fr.sh, dx, dy, dw, dh);
         ctx.globalAlpha = 1;
       }
     },
