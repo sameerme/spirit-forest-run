@@ -173,5 +173,17 @@ export function createLevelRuntime(levelData) {
     },
 
     pits() { return this.active.filter((e) => e.type === 'pit'); },
+
+    // Clear hazards (enemies + pits) in/near the view so a revive doesn't drop the
+    // player straight onto a threat. Resets any committed pit fall.
+    clearArea(camera) {
+      const x0 = camera.x - 120, x1 = camera.x + VW + 240;
+      const hazard = new Set(['snake', 'bat', 'spirit', 'pit']);
+      this.active = this.active.filter((e) => {
+        const near = e.worldX + (e.w || 0) > x0 && e.worldX < x1;
+        return !(near && hazard.has(e.type));
+      });
+      this.pitFalling = false;
+    },
   };
 }

@@ -1,4 +1,4 @@
-import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, COMBO_CAP, COIN_PER_SPHERE, SPHERE_SCORE, ENEMY_KILL_SCORE } from './constants.js';
+import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, COMBO_CAP, COIN_PER_SPHERE, SPHERE_SCORE, ENEMY_KILL_SCORE, START_HEARTS, REVIVE_COST_BASE, REVIVE_INVULN_MS } from './constants.js';
 import { loadAssets } from './engine/loader.js';
 import { createInput } from './engine/input.js';
 import { createCamera } from './engine/camera.js';
@@ -14,7 +14,7 @@ import { drawHud } from './game/hud.js';
 import { drawOverlay } from './game/scenes.js';
 import { createGhosts } from './game/ghosts.js';
 import { loadProgress, saveProgress } from './game/scoring.js';
-import { loadMeta, addCoins, unlockSkin, selectSkin, recordDailyPlay, skinById, SKINS } from './game/meta.js';
+import { loadMeta, addCoins, spendCoins, unlockSkin, selectSkin, recordDailyPlay, skinById, SKINS } from './game/meta.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -22,6 +22,8 @@ const shareBtn = document.getElementById('shareBtn');
 const dlBtn = document.getElementById('dlBtn');
 const muteBtn = document.getElementById('muteBtn');
 const furyBtn = document.getElementById('furyBtn');
+const reviveBtn = document.getElementById('reviveBtn');
+const reviveTarangBtn = document.getElementById('reviveTarangBtn');
 const toastEl = document.getElementById('toast');
 
 // Tarang+ store link, chosen by platform (App Store on iOS, Play Store elsewhere).
@@ -54,6 +56,9 @@ furyBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   if (game.scene === SCENE.PLAY && game.player.startFury()) { fx.shake(8); }
 });
+[reviveBtn, reviveTarangBtn].forEach((b) => b.addEventListener('pointerdown', (e) => e.stopPropagation()));
+reviveBtn.addEventListener('click', (e) => { e.stopPropagation(); if (game.scene === SCENE.REVIVE) revive(false); });
+reviveTarangBtn.addEventListener('click', (e) => { e.stopPropagation(); if (game.scene === SCENE.REVIVE) revive(true); });
 muteBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
 muteBtn.addEventListener('click', (e) => {
   e.stopPropagation();
@@ -124,7 +129,7 @@ skinsClose.addEventListener('click', (e) => { e.stopPropagation(); skinsPanel.hi
 skinsPanel.addEventListener('pointerdown', (e) => e.stopPropagation());
 skinsPanel.addEventListener('click', (e) => e.stopPropagation());
 
-const SCENE = { TITLE: 'title', LEVEL: 'level', PLAY: 'play', CLEAR: 'clear', GAMEOVER: 'gameover', VICTORY: 'victory' };
+const SCENE = { TITLE: 'title', LEVEL: 'level', PLAY: 'play', CLEAR: 'clear', REVIVE: 'revive', GAMEOVER: 'gameover', VICTORY: 'victory' };
 
 let assets = null;
 let game = null;
@@ -150,6 +155,8 @@ function newGame(startLevel = 0) {
     baseCoins: loadMeta(store).coins, // coins banked before this run (for HUD total)
     sceneTimer: 0,
     ambientT: 7 + Math.random() * 7, // seconds until the next eerie one-shot
+    revivesUsed: 0,        // coin revives taken this run (cost doubles each time)
+    freeReviveUsed: false, // the one free Tarang+ revive per run
   };
 }
 
@@ -179,6 +186,7 @@ function tap() {
     else startLevel(next);
     return;
   }
+  if (game.scene === SCENE.REVIVE) { endRun(SCENE.GAMEOVER); return; } // tap = give up
   if (game.scene === SCENE.GAMEOVER) { game = newGame(0); startLevel(0); return; }
   if (game.scene === SCENE.VICTORY) { game = newGame(0); startLevel(0); return; }
   // PLAY: a tap is a jump request (play the blip only when a jump is actually available)
@@ -245,7 +253,9 @@ function update(dt) {
     if (game.runCoins > 0) { addCoins(store, game.runCoins); game.runCoins = 0; } // bank progress
     audio.win();
   } else if (died) {
-    endRun(SCENE.GAMEOVER);
+    // Offer a continue if one is still available; otherwise end the run.
+    if (canCoinRevive() || !game.freeReviveUsed) game.scene = SCENE.REVIVE;
+    else endRun(SCENE.GAMEOVER);
   }
 }
 
@@ -253,6 +263,33 @@ function endRun(scene) {
   if (game.runCoins > 0) { addCoins(store, game.runCoins); game.runCoins = 0; }
   game.scene = scene;
   if (scene === SCENE.VICTORY || game.newHigh) { fx.confetti(VW); audio.win(); }
+}
+
+// ---- continue / revive ----
+function reviveCost() { return REVIVE_COST_BASE * Math.pow(2, game.revivesUsed); }
+function canCoinRevive() { return (game.baseCoins + game.runCoins) >= reviveCost(); }
+
+function revive(free) {
+  if (free) {
+    if (game.freeReviveUsed) return;
+    game.freeReviveUsed = true;
+    window.open(tarangUrl(), '_blank', 'noopener'); // promote the OTT app
+  } else {
+    if (!canCoinRevive()) return;
+    // bank the run's coins, then spend the cost from the unified balance
+    if (game.runCoins > 0) { addCoins(store, game.runCoins); game.runCoins = 0; }
+    spendCoins(store, reviveCost());
+    game.baseCoins = loadMeta(store).coins;
+    game.revivesUsed += 1;
+  }
+  // reset the player to a safe standing state with grace i-frames
+  const p = game.player;
+  p.hearts = START_HEARTS; p.invuln = REVIVE_INVULN_MS;
+  p.dash = 0; p.fury = 0; p.shield = 0; p.cooldown = 0;
+  p.y = GROUND_TOP - p.h; p.vy = 0; p.grounded = true; p.jumpsUsed = 0; p.coyote = 0; p.buffer = 0;
+  game.runtime.clearArea(game.camera); // wipe nearby hazards so we don't die instantly
+  fx.shake(6);
+  game.scene = SCENE.PLAY;
 }
 
 // ---- draw ----
@@ -381,6 +418,7 @@ function render() {
   }
   if (game.scene === SCENE.TITLE) drawOverlay(ctx, 'title', { high: game.high, streak: dailyStreak, coins: game.baseCoins });
   if (game.scene === SCENE.LEVEL) drawOverlay(ctx, 'level', { level: game.levelIndex + 1 });
+  if (game.scene === SCENE.REVIVE) drawOverlay(ctx, 'revive', { score: game.score });
   if (game.scene === SCENE.CLEAR) drawOverlay(ctx, 'clear', { score: game.score, ad: adReady ? adImg : null });
   if (game.scene === SCENE.GAMEOVER) drawOverlay(ctx, 'gameover', { score: game.score, high: game.high, newHigh: game.newHigh, ad: adReady ? adImg : null });
   if (game.scene === SCENE.VICTORY) drawOverlay(ctx, 'victory', { score: game.score, high: game.high, newHigh: game.newHigh });
@@ -392,6 +430,13 @@ function render() {
   if (!showEnd && !toastEl.hidden) toastEl.hidden = true;
   const showFury = game.scene === SCENE.PLAY && game.player.canFury();
   if (furyBtn.hidden === showFury) furyBtn.hidden = !showFury;
+  // Continue buttons on the revive screen.
+  const onRevive = game.scene === SCENE.REVIVE;
+  const showCoin = onRevive && canCoinRevive();
+  const showFree = onRevive && !game.freeReviveUsed;
+  if (reviveBtn.hidden === showCoin) reviveBtn.hidden = !showCoin;
+  if (reviveTarangBtn.hidden === showFree) reviveTarangBtn.hidden = !showFree;
+  if (showCoin) reviveBtn.textContent = `❤️ Continue (${reviveCost()} 🪙)`;
   const onTitle = game.scene === SCENE.TITLE;
   if (skinBtn.hidden === onTitle) skinBtn.hidden = !onTitle;
   if (!onTitle && !skinsPanel.hidden) skinsPanel.hidden = true;

@@ -148,3 +148,14 @@ test('running into an enemy with no power costs a heart', () => {
   assert.ok(rt.events.some((e) => e.type === 'hit'), 'unprotected contact is a hit');
   assert.equal(player.hearts, START_HEARTS - 1, 'lost one heart');
 });
+
+test('clearArea removes nearby hazards so a revive is safe', () => {
+  const camera = createCamera();
+  const rt = createLevelRuntime(snakeLevel());
+  const player = createPlayer();
+  rt.update(1 / 60, camera, player, audio); // spawn the snake into active
+  assert.ok(rt.active.some((e) => e.type === 'snake'), 'snake present before clear');
+  rt.clearArea(camera);
+  assert.ok(!rt.active.some((e) => e.type === 'snake'), 'snake cleared near the player');
+  assert.equal(rt.pitFalling, false);
+});

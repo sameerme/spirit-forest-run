@@ -26,6 +26,10 @@ export const KILL_ENERGY = 6;       // energy gained per enemy killed (feeds Fur
 export const SHIELD_SPAWN_MIN_S = 26; // shield pickup spawn interval (seconds)
 export const SHIELD_SPAWN_MAX_S = 42;
 
+// ---- Continue / revive ----
+export const REVIVE_COST_BASE = 50;   // coin cost of the 1st revive (doubles each time)
+export const REVIVE_INVULN_MS = 2200; // grace i-frames granted on revive
+
 export const COMBO_CAP = 6;          // max sphere score multiplier
 export const COIN_PER_SPHERE = 1;    // coins banked per sphere
 export const ENERGY_MAX = 100;

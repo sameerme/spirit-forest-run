@@ -32,6 +32,15 @@ export function addCoins(store, n) {
   return c;
 }
 
+// Spend coins if affordable. Returns { ok, coins }.
+export function spendCoins(store, n) {
+  const have = Number(store.getItem('sfr-coins') || 0);
+  if (have < n) return { ok: false, coins: have };
+  const left = have - n;
+  store.setItem('sfr-coins', String(left));
+  return { ok: true, coins: left };
+}
+
 // Try to unlock a skin. Returns { ok, coins, unlocked }.
 export function unlockSkin(store, id) {
   const skin = skinById(id);

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadMeta, addCoins, unlockSkin, selectSkin, recordDailyPlay, skinById, SKINS } from '../src/game/meta.js';
+import { loadMeta, addCoins, spendCoins, unlockSkin, selectSkin, recordDailyPlay, skinById, SKINS } from '../src/game/meta.js';
 
 function fakeStore(init = {}) {
   const m = new Map(Object.entries(init));
@@ -54,4 +54,14 @@ test('daily streak: increments on consecutive days, resets on a gap', () => {
 
 test('skinById falls back to default for unknown ids', () => {
   assert.equal(skinById('nope').id, 'default');
+});
+
+test('spendCoins deducts when affordable, refuses otherwise', () => {
+  const s = fakeStore({ 'sfr-coins': '120' });
+  const ok = spendCoins(s, 50);
+  assert.deepEqual(ok, { ok: true, coins: 70 });
+  assert.equal(loadMeta(s).coins, 70);
+  const no = spendCoins(s, 200);
+  assert.equal(no.ok, false);
+  assert.equal(loadMeta(s).coins, 70, 'balance unchanged on a failed spend');
 });

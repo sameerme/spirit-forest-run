@@ -4,6 +4,7 @@ const COPY = {
   title:    { t: 'BIKRAM BETAAL', s: '', p: 'TAP TO BEGIN' },
   level:    { t: 'LEVEL', s: '', p: 'TAP TO RUN' },
   clear:    { t: 'BETAAL CAPTURED', s: '', p: 'TAP FOR NEXT LEVEL' },
+  revive:   { t: 'CONTINUE?', s: '', p: 'TAP TO GIVE UP' },
   gameover: { t: 'BETAAL WON', s: '', p: 'TAP TO RETRY' },
   victory:  { t: 'YOU SAVED BETAAL!', s: 'All levels cleared', p: 'TAP TO PLAY AGAIN' },
 };

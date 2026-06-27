@@ -65,6 +65,25 @@ html { -webkit-tap-highlight-color: transparent; }
   50% { box-shadow: 0 4px 0 #8a3a00, 0 0 26px rgba(255,190,80,1); }
 }
 
+/* ---- Continue / revive buttons (shown on the CONTINUE? screen) ---- */
+.revive-btn, .revive-tarang-btn {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  font-family: "Bangers", system-ui, sans-serif; letter-spacing: 0.04em;
+  border: 3px solid #141019; border-radius: 12px; cursor: pointer; z-index: 14;
+  white-space: nowrap; -webkit-tap-highlight-color: transparent;
+}
+.revive-btn {
+  bottom: 30%; font-size: 1.5rem; padding: 12px 28px;
+  color: #fff; background: #e2466a; box-shadow: 0 4px 0 #7a1230;
+}
+.revive-tarang-btn {
+  bottom: 20%; font-size: 1.35rem; padding: 10px 22px;
+  color: #fff; background: #e23744; box-shadow: 0 4px 0 #7a1620;
+}
+.revive-btn[hidden], .revive-tarang-btn[hidden] { display: none; }
+.revive-btn:active { transform: translateX(-50%) translateY(2px); box-shadow: 0 2px 0 #7a1230; }
+.revive-tarang-btn:active { transform: translateX(-50%) translateY(2px); box-shadow: 0 2px 0 #7a1620; }
+
 /* ---- Download Tarang+ CTA (shown on end screens, above Share) ---- */
 .dl-btn {
   position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%);
