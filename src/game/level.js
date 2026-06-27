@@ -1,16 +1,16 @@
 import {
   PLAYER_X, ENERGY_PER_SPHERE, GROUND_TOP, VW, VH,
-  KILL_ENERGY, SHIELD_SPAWN_MIN_S, SHIELD_SPAWN_MAX_S,
-  FURY_FIRE_Y, FURY_FIRE_RESPAWN_S, DEATH_MS, DEATH_FALL,
+  KILL_ENERGY, FURY_FIRE_Y, FURY_FIRE_RESPAWN_S, DEATH_MS, DEATH_FALL,
 } from '../constants.js';
 
 const NO_FLOOR = 100000; // effective "ground" when the player is over a pit gap
 import { aabbOverlap } from '../engine/physics.js';
 import { createSprite, frameRect } from '../engine/sprite.js';
 import { entitiesToSpawn } from './spawner.js';
-import { worldBox, updateEntity, createShield, createFire } from './entities.js';
+import { worldBox, updateEntity, createFire } from './entities.js';
 
-const shieldInterval = () => SHIELD_SPAWN_MIN_S + Math.random() * (SHIELD_SPAWN_MAX_S - SHIELD_SPAWN_MIN_S);
+// Fury allowance per level: 1 for levels 1-5, 2 for 6-10, 3 for 11-15.
+const furyAllowance = (levelIndex) => Math.floor(levelIndex / 5) + 1;
 
 // Correction A: live-clone helper — creates a fresh animated entity from a
 // stripped blueprint so retries don't share mutable state and animations work.
@@ -20,7 +20,7 @@ function makeLive(bp) {
   return { ...bp, taken: false, consumed: false, t: 0, anim: spec ? createSprite(spec[0], spec[1]) : null };
 }
 
-export function createLevelRuntime(levelData) {
+export function createLevelRuntime(levelData, levelIndex = 0) {
   return {
     data: levelData,
     active: [],
@@ -28,8 +28,9 @@ export function createLevelRuntime(levelData) {
     distance: 0,
     spheres: 0,
     pitFalling: false,
-    shieldTimer: shieldInterval(), // seconds until the next shield power-up spawns
-    furyFireCd: 0, // gap timer before a fury fire may (re)appear
+    furyFireCd: 0,                        // gap timer before a fury fire may (re)appear
+    furyQuota: furyAllowance(levelIndex), // how many furies this level allows
+    furyUsed: 0,                          // furies collected this level
 
     // Effective floor under the player for this frame. Over a pit gap there is no
     // floor (the player falls); on solid ground / a platform it's GROUND_TOP.
@@ -69,19 +70,11 @@ export function createLevelRuntime(levelData) {
       if (arrived.has('spirit')) audio.spirit();
       this.idx = nextIndex;
 
-      // Occasionally drop a shield power-up ahead at a reachable height.
-      this.shieldTimer -= dt;
-      if (this.shieldTimer <= 0) {
-        const y = GROUND_TOP - 90 - Math.random() * 230;
-        this.active.push(makeLive(createShield(camera.x + VW + 80, y)));
-        this.shieldTimer = shieldInterval();
-      }
-
       // When the energy bar is full, float a fury fire up high (needs a double
-      // jump). One at a time, with a small gap before it can reappear.
+      // jump). One at a time, capped to this level's fury allowance.
       this.furyFireCd -= dt;
       const hasFire = this.active.some((e) => e.type === 'fury' && !e.taken && !e.consumed);
-      if (player.canFury() && player.fury <= 0 && !hasFire && this.furyFireCd <= 0) {
+      if (this.furyUsed < this.furyQuota && player.canFury() && player.fury <= 0 && !hasFire && this.furyFireCd <= 0) {
         this.active.push(makeLive(createFire(camera.x + VW + 120, FURY_FIRE_Y)));
         this.furyFireCd = FURY_FIRE_RESPAWN_S;
       }
@@ -111,12 +104,7 @@ export function createLevelRuntime(levelData) {
         } else if (e.type === 'fury') {
           if (aabbOverlap(pBox, wb)) {
             e.taken = true;
-            if (player.startFury()) this.events.push({ type: 'furyget', x: ex, y: wb.y + wb.h / 2 });
-          }
-        } else if (e.type === 'shield') {
-          if (aabbOverlap(pBox, wb)) {
-            e.taken = true; player.addShield();
-            this.events.push({ type: 'shieldget', x: ex, y: wb.y + wb.h / 2 });
+            if (player.startFury()) { this.furyUsed += 1; this.events.push({ type: 'furyget', x: ex, y: wb.y + wb.h / 2 }); }
           }
         } else if (e.type === 'platform') {
           // land on / stay on the platform top while descending or resting on it
@@ -138,8 +126,8 @@ export function createLevelRuntime(levelData) {
               if (stomp && !offensive) player.bounce();
               audio.slash();
               this.events.push({ type: 'kill', x: ex, y: wb.y + wb.h / 2 });
-            } else if (player.shield > 0 || player.invuln > 0) {
-              // protected — pass through harmlessly, no kill
+            } else if (player.invuln > 0) {
+              // briefly invincible (post-hit grace) — pass through, no kill
             } else {
               const dead = player.hit(); audio.hit();
               this.events.push({ type: 'hit', x: PLAYER_X + player.w / 2, y: player.y + player.h / 2 });
@@ -172,19 +160,6 @@ export function createLevelRuntime(levelData) {
         const sx = e.worldX - camera.x;
         if (sx > VW + 120 || sx + (e.w || 0) < -120) continue;
         if (e.type === 'pit') continue; // pit is the absence of ground (handled by ground draw)
-        if (e.type === 'shield') {
-          const cx = sx + e.w / 2, cy = e.y + e.h / 2, r = e.w / 2;
-          ctx.save();
-          const g = ctx.createRadialGradient(cx, cy, r * 0.15, cx, cy, r);
-          g.addColorStop(0, 'rgba(190,242,255,0.95)'); g.addColorStop(1, 'rgba(90,180,255,0.12)');
-          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-          ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(210,247,255,0.95)'; ctx.stroke();
-          ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 4;
-          ctx.beginPath(); ctx.moveTo(cx, cy - r * 0.45); ctx.lineTo(cx, cy + r * 0.45);
-          ctx.moveTo(cx - r * 0.45, cy); ctx.lineTo(cx + r * 0.45, cy); ctx.stroke(); // plus glyph
-          ctx.restore();
-          continue;
-        }
         if (e.type === 'fury') {
           const a = assets.get('fury_fire');
           const flick = 1 + 0.08 * Math.sin((e.t || 0) * 12);

@@ -16,10 +16,6 @@ export function createSpirit(worldX, baseY, amp = 90, freq = 0.9) {
 export function createSphere(worldX, y) {
   return { type: 'sphere', worldX, y, w: 52, h: 52, taken: false, anim: createSprite(4, 8) };
 }
-export function createShield(worldX, y) {
-  // protective power-up; gentle bob via the generic amp/sin path in updateEntity
-  return { type: 'shield', worldX, y, baseY: y, amp: 14, freq: 0.6, t: 0, w: 46, h: 46, taken: false };
-}
 export function createFire(worldX, y) {
   // Fury fire pickup; bobs gently. Collected only when the energy bar is full.
   return { type: 'fury', worldX, y, baseY: y, amp: 12, freq: 0.9, t: 0, w: 52, h: 60, taken: false };

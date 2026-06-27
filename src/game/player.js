@@ -2,7 +2,7 @@ import { applyGravity, integrate } from '../engine/physics.js';
 import {
   GROUND_TOP, PLAYER_X, PLAYER_W, PLAYER_H, GRAVITY, JUMP_V, DOUBLE_JUMP_V,
   COYOTE_MS, JUMP_BUFFER_MS, INVULN_MS, DASH_MS, DASH_COOLDOWN_MS,
-  FURY_MS, SHIELD_MS, STOMP_BOUNCE_V, ENERGY_MAX, START_HEARTS,
+  FURY_MS, STOMP_BOUNCE_V, ENERGY_MAX, START_HEARTS,
 } from '../constants.js';
 
 export function createPlayer(groundTop = GROUND_TOP) {
@@ -11,7 +11,7 @@ export function createPlayer(groundTop = GROUND_TOP) {
     x: PLAYER_X, y: standY, vy: 0, w: PLAYER_W, h: PLAYER_H,
     grounded: true, jumpsUsed: 0,
     hearts: START_HEARTS, invuln: 0, dash: 0, energy: 0,
-    cooldown: 0, fury: 0, shield: 0, // dash cooldown + power timers
+    cooldown: 0, fury: 0, // dash cooldown + fury timer
     coyote: 0, buffer: 0,
 
     box() { return { x: this.x, y: this.y, w: this.w, h: this.h }; },
@@ -19,7 +19,7 @@ export function createPlayer(groundTop = GROUND_TOP) {
     setAirborneFromLedge() {
       if (this.grounded) { this.grounded = false; this.coyote = COYOTE_MS; }
     },
-    isInvincible() { return this.invuln > 0 || this.dash > 0 || this.fury > 0 || this.shield > 0; },
+    isInvincible() { return this.invuln > 0 || this.dash > 0 || this.fury > 0; },
     canFury() { return this.energy >= ENERGY_MAX && this.fury <= 0; },
 
     _tryJump() {
@@ -40,7 +40,6 @@ export function createPlayer(groundTop = GROUND_TOP) {
       if (this.dash > 0) this.dash = Math.max(0, this.dash - ms);
       if (this.cooldown > 0) this.cooldown = Math.max(0, this.cooldown - ms);
       if (this.fury > 0) this.fury = Math.max(0, this.fury - ms);
-      if (this.shield > 0) this.shield = Math.max(0, this.shield - ms);
       if (this.buffer > 0) this.buffer = Math.max(0, this.buffer - ms);
       if (!this.grounded && this.coyote > 0) this.coyote = Math.max(0, this.coyote - ms);
 
@@ -71,7 +70,6 @@ export function createPlayer(groundTop = GROUND_TOP) {
       if (this.canFury()) { this.fury = FURY_MS; this.energy = 0; return true; }
       return false;
     },
-    addShield() { this.shield = SHIELD_MS; },
     // Bounce off the top of a stomped enemy.
     bounce() { this.vy = -STOMP_BOUNCE_V; this.grounded = false; this.jumpsUsed = 1; },
   };

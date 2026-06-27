@@ -130,23 +130,23 @@ test('stomping an enemy from above kills it and bounces the player', () => {
   assert.equal(player.hearts, START_HEARTS, 'no damage from a stomp');
 });
 
-test('shield protects from a hit without killing the enemy', () => {
-  const player = createPlayer();
-  const camera = createCamera();
-  const rt = createLevelRuntime(snakeLevel());
-  player.addShield();
-  rt.update(1 / 60, camera, player, audio);
-  assert.equal(player.hearts, START_HEARTS, 'shield blocks the damage');
-  assert.ok(!rt.events.some((e) => e.type === 'kill'), 'shield protects but does not kill');
-});
-
 test('running into an enemy with no power costs a heart', () => {
   const player = createPlayer();
   const camera = createCamera();
   const rt = createLevelRuntime(snakeLevel());
-  rt.update(1 / 60, camera, player, audio); // grounded, no dash/fury/shield
+  rt.update(1 / 60, camera, player, audio); // grounded, no dash/fury
   assert.ok(rt.events.some((e) => e.type === 'hit'), 'unprotected contact is a hit');
   assert.equal(player.hearts, START_HEARTS - 1, 'lost one heart');
+});
+
+test('fury allowance scales by level band (1 / 2 / 3)', () => {
+  const mk = (lvl) => createLevelRuntime(snakeLevel(), lvl).furyQuota;
+  assert.equal(mk(0), 1, 'level 1');
+  assert.equal(mk(4), 1, 'level 5');
+  assert.equal(mk(5), 2, 'level 6');
+  assert.equal(mk(9), 2, 'level 10');
+  assert.equal(mk(10), 3, 'level 11');
+  assert.equal(mk(14), 3, 'level 15');
 });
 
 test('clearArea removes nearby hazards so a revive is safe', () => {

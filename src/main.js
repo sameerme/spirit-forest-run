@@ -138,7 +138,7 @@ function newGame(startLevel = 0) {
     levelIndex: startLevel,
     camera: createCamera(),
     player: createPlayer(),
-    runtime: createLevelRuntime(LEVELS[startLevel]),
+    runtime: createLevelRuntime(LEVELS[startLevel], startLevel),
     score: 0,
     distance: 0,      // cumulative px travelled across all levels (drives the score)
     bonus: 0,         // sphere points (with combo multiplier), cumulative
@@ -158,7 +158,7 @@ function startLevel(index) {
   game.levelIndex = index;
   game.camera.reset();
   game.player = createPlayer();
-  game.runtime = createLevelRuntime(LEVELS[index]);
+  game.runtime = createLevelRuntime(LEVELS[index], index);
   game.combo = 1;
   game.scene = SCENE.LEVEL;
   game.sceneTimer = 1100;
@@ -223,9 +223,6 @@ function update(dt) {
       game.bonus += pts;
       fx.burst(ev.x, ev.y, COLORS.spirit, 16);
       fx.popup(ev.x, ev.y - 8, `+${pts}`, COLORS.text);
-    } else if (ev.type === 'shieldget') {
-      fx.burst(ev.x, ev.y, COLORS.energy, 18);
-      fx.popup(ev.x, ev.y - 8, 'SHIELD!', COLORS.energy);
     } else if (ev.type === 'furyget') {
       fx.shake(8);
       fx.burst(ev.x, ev.y, COLORS.bikram, 22, 260);
@@ -283,7 +280,7 @@ function revive(free) {
   // reset the player to a safe standing state with grace i-frames
   const p = game.player;
   p.hearts = START_HEARTS; p.invuln = REVIVE_INVULN_MS;
-  p.dash = 0; p.fury = 0; p.shield = 0; p.cooldown = 0;
+  p.dash = 0; p.fury = 0; p.cooldown = 0;
   p.y = GROUND_TOP - p.h; p.vy = 0; p.grounded = true; p.jumpsUsed = 0; p.coyote = 0; p.buffer = 0;
   game.runtime.clearArea(game.camera); // wipe nearby hazards so we don't die instantly
   fx.shake(6);
@@ -350,13 +347,13 @@ function drawPlayer() {
   const cx = PLAYER_X - 6 + dw / 2;     // sprite centre
   const feet = p.y - 8 + dh + 10;       // ground-contact line (nudged down so feet plant)
 
-  // Power aura: fury (orange) or shield (cyan) ring around Bikram.
-  if (p.fury > 0 || p.shield > 0) {
+  // Power aura: a pulsing orange ring around Bikram while Fury is active.
+  if (p.fury > 0) {
     const ay = feet - dh / 2;
     ctx.save();
     ctx.globalAlpha = 0.45 + 0.15 * Math.sin(performance.now() / 90);
     ctx.lineWidth = 4;
-    ctx.strokeStyle = p.fury > 0 ? '#ff8a3a' : '#7fdfff';
+    ctx.strokeStyle = '#ff8a3a';
     ctx.beginPath(); ctx.ellipse(cx, ay, dw * 0.72, dh * 0.62, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   }

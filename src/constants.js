@@ -19,12 +19,9 @@ export const DASH_COOLDOWN_MS = 1100; // dash is cooldown-gated, not energy-gate
 
 // ---- Combat & powers (wave 2) ----
 export const FURY_MS = 4000;        // Fury Mode: invincible auto-kill duration
-export const SHIELD_MS = 6000;      // shield power-up protective window
 export const STOMP_BOUNCE_V = 640;  // upward bounce after stomping an enemy
 export const ENEMY_KILL_SCORE = 60; // base score per enemy killed (x combo)
 export const KILL_ENERGY = 6;       // energy gained per enemy killed (feeds Fury)
-export const SHIELD_SPAWN_MIN_S = 26; // shield pickup spawn interval (seconds)
-export const SHIELD_SPAWN_MAX_S = 42;
 
 // ---- Continue / revive ----
 export const REVIVE_COST_BASE = 50;   // coin cost of the 1st revive (doubles each time)
