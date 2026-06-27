@@ -29,10 +29,19 @@ export function drawOverlay(ctx, kind, data = {}) {
   }
 
   ctx.fillStyle = COLORS.bikram;
-  // The title screen name is in Odia script -> use Baloo Bhaina 2 (covers Odia);
-  // every other title stays in the comic Bangers face.
-  ctx.font = kind === 'title' ? '700 60px "Baloo Bhaina 2", sans-serif' : '72px Bangers, sans-serif';
   const title = kind === 'level' ? `LEVEL ${data.level || 1}` : c.t;
+  if (kind === 'title') {
+    // Odia script -> Baloo Bhaina 2 (covers Odia). Shrink to fit the screen
+    // width; Odia web fonts render wider than measured, so keep a safe margin.
+    const maxW = VW * 0.82;
+    let size = 60;
+    ctx.font = `700 ${size}px "Baloo Bhaina 2", sans-serif`;
+    while (size > 22 && ctx.measureText(title).width > maxW) {
+      size -= 2; ctx.font = `700 ${size}px "Baloo Bhaina 2", sans-serif`;
+    }
+  } else {
+    ctx.font = '72px Bangers, sans-serif';
+  }
   ctx.fillText(title, VW / 2, titleY);
   if (c.s) { ctx.fillStyle = COLORS.text; ctx.font = '34px Bangers, sans-serif'; ctx.fillText(c.s, VW / 2, titleY + 50); }
 
