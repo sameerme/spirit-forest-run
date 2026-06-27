@@ -27,6 +27,9 @@ export const KILL_ENERGY = 6;       // energy gained per enemy killed (feeds Fur
 export const REVIVE_COST_BASE = 50;   // coin cost of the 1st revive (doubles each time)
 export const REVIVE_INVULN_MS = 2200; // grace i-frames granted on revive
 
+// ---- Level intro cinematic (Betaal escapes off Bikram's shoulder) ----
+export const INTRO_MS = 2000;
+
 // ---- Boss fight (level 15) ----
 export const BOSS_HP = 6;        // hits to defeat Betaal
 export const BOSS_HIT_SCORE = 250; // score per boss hit

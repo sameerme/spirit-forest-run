@@ -1,4 +1,4 @@
-import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, COMBO_CAP, COIN_PER_SPHERE, SPHERE_SCORE, ENEMY_KILL_SCORE, START_HEARTS, REVIVE_COST_BASE, REVIVE_INVULN_MS, BOSS_HIT_SCORE, BOSS_SCORE } from './constants.js';
+import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, COMBO_CAP, COIN_PER_SPHERE, SPHERE_SCORE, ENEMY_KILL_SCORE, START_HEARTS, REVIVE_COST_BASE, REVIVE_INVULN_MS, BOSS_HIT_SCORE, BOSS_SCORE, INTRO_MS } from './constants.js';
 import { loadAssets } from './engine/loader.js';
 import { createInput } from './engine/input.js';
 import { createCamera } from './engine/camera.js';
@@ -164,7 +164,7 @@ function startLevel(index) {
   game.runtime = createLevelRuntime(LEVELS[index], index);
   game.combo = 1;
   game.scene = SCENE.LEVEL;
-  game.sceneTimer = 1100;
+  game.sceneTimer = INTRO_MS;
   fx.clear();
   loadBg(index);       // current level's background
   loadBg(index + 1);   // prefetch the next one
@@ -417,13 +417,65 @@ function drawPlayer() {
   ctx.restore();
 }
 
+// The level goal: a spooky tree with Betaal hanging upside-down from a branch
+// (the Vetala legend). Bikram reaches it -> BETAAL CAPTURED.
 function drawGoal() {
   const lvl = LEVELS[game.levelIndex];
   const sx = lvl.goalX - game.camera.x;
-  if (sx > VW + 200 || sx < -200) return;
+  if (sx > VW + 280 || sx < -280) return;
+  const tx = sx + 60; // trunk centre, a touch ahead of the goal line
+  ctx.save();
+  // trunk (tapering)
+  ctx.fillStyle = '#2c2030';
+  ctx.beginPath();
+  ctx.moveTo(tx - 20, GROUND_TOP); ctx.lineTo(tx - 11, GROUND_TOP - 300);
+  ctx.lineTo(tx + 11, GROUND_TOP - 300); ctx.lineTo(tx + 20, GROUND_TOP);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = COLORS.ink; ctx.lineWidth = 3; ctx.stroke();
+  // branch reaching left, where Betaal hangs
+  const bxEnd = tx - 86, byEnd = GROUND_TOP - 252;
+  ctx.lineCap = 'round'; ctx.strokeStyle = '#2c2030'; ctx.lineWidth = 14;
+  ctx.beginPath(); ctx.moveTo(tx - 6, GROUND_TOP - 262); ctx.lineTo(bxEnd, byEnd); ctx.stroke();
+  // canopy
+  for (const [bx, by, r] of [[tx, -332, 92], [tx - 62, -302, 66], [tx + 62, -302, 66], [tx, -384, 72]]) {
+    ctx.fillStyle = '#15321f';
+    ctx.beginPath(); ctx.ellipse(bx, GROUND_TOP + by, r, r * 0.8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = COLORS.ink; ctx.lineWidth = 2; ctx.stroke();
+  }
+  // Betaal hanging UPSIDE-DOWN from the branch tip, swaying gently.
   const a = assets.get('betaal_idle');
-  const fr = frameRect(a.meta, anims.betaal.update(1 / 60));
-  ctx.drawImage(a.img, fr.sx, fr.sy, fr.sw, fr.sh, sx, GROUND_TOP - a.meta.fh, a.meta.fw, a.meta.fh);
+  const scale = 0.78, bw = a.meta.fw * scale, bh = a.meta.fh * scale;
+  ctx.translate(bxEnd, byEnd);
+  ctx.rotate(Math.sin(performance.now() / 600) * 0.12); // sway
+  ctx.scale(1, -1); // vertical flip -> feet at the branch, head hanging down
+  ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, -bw / 2, -bh, bw, bh);
+  ctx.restore();
+}
+
+// Intro cinematic: Betaal perched on Bikram's shoulder, then it flaps away to
+// the right and vanishes. `p` is 0..1 progress through the intro.
+function drawIntroBetaal(p) {
+  const player = game.player;
+  const a = assets.get('betaal_idle');
+  const base = 0.5, bw = a.meta.fw * base, bh = a.meta.fh * base;
+  const shoulderX = PLAYER_X + player.w * 0.58;
+  const shoulderY = player.y - bh * 0.25;
+  const PERCH = 0.32;
+  let bx, by, alpha = 1, sc = 1;
+  if (p < PERCH) {
+    bx = shoulderX; by = shoulderY + Math.sin(performance.now() / 170) * 3;
+  } else {
+    const q = Math.min(1, (p - PERCH) / (1 - PERCH));
+    bx = shoulderX + q * (VW + 150 - shoulderX);
+    by = shoulderY - Math.sin(q * Math.PI * 0.6) * 90 - q * 40 + Math.sin(performance.now() / 90) * 4;
+    alpha = q < 0.72 ? 1 : Math.max(0, 1 - (q - 0.72) / 0.28);
+    sc = 1 - q * 0.25;
+  }
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  const w = bw * sc, h = bh * sc;
+  ctx.drawImage(a.img, 0, 0, a.meta.fw, a.meta.fh, bx - w / 2, by - h / 2, w, h);
+  ctx.restore();
 }
 
 function drawBossBar() {
@@ -459,6 +511,9 @@ function render() {
   } else if (game.scene === SCENE.BOSS) {
     game.boss.draw(ctx, assets);
     drawPlayer();
+  } else if (game.scene === SCENE.LEVEL) {
+    drawPlayer(); // Bikram ready at the start line
+    drawIntroBetaal(1 - game.sceneTimer / INTRO_MS);
   }
   ctx.restore();
   applyComic(ctx, VW, VH);
@@ -477,7 +532,16 @@ function render() {
   }
   if (game.scene === SCENE.BOSS) drawBossBar();
   if (game.scene === SCENE.TITLE) drawOverlay(ctx, 'title', { high: game.high, streak: dailyStreak, coins: game.baseCoins });
-  if (game.scene === SCENE.LEVEL) drawOverlay(ctx, 'level', { level: game.levelIndex + 1 });
+  if (game.scene === SCENE.LEVEL) {
+    // Non-dimming title so the intro cinematic stays visible.
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = COLORS.bikram; ctx.font = '64px Bangers, sans-serif';
+    ctx.fillText(`LEVEL ${game.levelIndex + 1}`, VW / 2, VH * 0.26);
+    ctx.fillStyle = COLORS.text; ctx.font = '26px Bangers, sans-serif';
+    ctx.fillText('CHASE THE BETAAL!', VW / 2, VH * 0.26 + 42);
+    ctx.restore();
+  }
   if (game.scene === SCENE.REVIVE) drawOverlay(ctx, 'revive', { score: game.score });
   if (game.scene === SCENE.CLEAR) drawOverlay(ctx, 'clear', { score: game.score, ad: adReady ? adImg : null });
   if (game.scene === SCENE.GAMEOVER) drawOverlay(ctx, 'gameover', { score: game.score, high: game.high, newHigh: game.newHigh, ad: adReady ? adImg : null });
