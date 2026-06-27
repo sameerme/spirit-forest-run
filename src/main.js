@@ -1,4 +1,4 @@
-import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, COMBO_CAP, COIN_PER_SPHERE, SPHERE_SCORE, ENEMY_KILL_SCORE, START_HEARTS, REVIVE_COST_BASE, REVIVE_INVULN_MS } from './constants.js';
+import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, COMBO_CAP, COIN_PER_SPHERE, SPHERE_SCORE, ENEMY_KILL_SCORE, START_HEARTS, REVIVE_COST_BASE, REVIVE_INVULN_MS, BOSS_HIT_SCORE, BOSS_SCORE } from './constants.js';
 import { loadAssets } from './engine/loader.js';
 import { createInput } from './engine/input.js';
 import { createCamera } from './engine/camera.js';
@@ -13,6 +13,7 @@ import { LEVELS } from './game/levels/levels.js';
 import { drawHud } from './game/hud.js';
 import { drawOverlay } from './game/scenes.js';
 import { createGhosts } from './game/ghosts.js';
+import { createBoss } from './game/boss.js';
 import { loadProgress, saveProgress } from './game/scoring.js';
 import { loadMeta, addCoins, spendCoins, unlockSkin, selectSkin, recordDailyPlay, skinById, SKINS } from './game/meta.js';
 
@@ -123,7 +124,7 @@ skinsClose.addEventListener('click', (e) => { e.stopPropagation(); skinsPanel.hi
 skinsPanel.addEventListener('pointerdown', (e) => e.stopPropagation());
 skinsPanel.addEventListener('click', (e) => e.stopPropagation());
 
-const SCENE = { TITLE: 'title', LEVEL: 'level', PLAY: 'play', CLEAR: 'clear', REVIVE: 'revive', GAMEOVER: 'gameover', VICTORY: 'victory' };
+const SCENE = { TITLE: 'title', LEVEL: 'level', PLAY: 'play', BOSS: 'boss', CLEAR: 'clear', REVIVE: 'revive', GAMEOVER: 'gameover', VICTORY: 'victory' };
 
 let assets = null;
 let game = null;
@@ -151,6 +152,8 @@ function newGame(startLevel = 0) {
     ambientT: 7 + Math.random() * 7, // seconds until the next eerie one-shot
     revivesUsed: 0,        // coin revives taken this run (cost doubles each time)
     freeReviveUsed: false, // the one free Tarang+ revive per run
+    boss: null,            // level-15 boss instance
+    bossActive: false,     // true while the boss fight is in progress
   };
 }
 
@@ -195,6 +198,7 @@ function dash() {
 // ---- update ----
 function update(dt) {
   if (game.scene === SCENE.LEVEL) { game.sceneTimer -= dt * 1000; if (game.sceneTimer <= 0) game.scene = SCENE.PLAY; return; }
+  if (game.scene === SCENE.BOSS) { updateBoss(dt); return; }
   if (game.scene !== SCENE.PLAY) return;
 
   // Occasional distant ambience (howl / creepy drone), randomized, mute-gated.
@@ -243,14 +247,53 @@ function update(dt) {
   }
 
   if (won) {
-    game.scene = SCENE.CLEAR;
-    saveProgress(store, { high: game.high, level: Math.min(LEVELS.length, game.levelIndex + 2) });
-    if (game.runCoins > 0) { addCoins(store, game.runCoins); game.runCoins = 0; } // bank progress
-    audio.win();
+    // The final level ends in a boss fight instead of a normal clear.
+    if (game.levelIndex === LEVELS.length - 1) {
+      game.scene = SCENE.BOSS; game.boss = createBoss(); game.bossActive = true;
+      game.player.y = GROUND_TOP - game.player.h; game.player.vy = 0; game.player.grounded = true;
+      audio.spirit();
+    } else {
+      game.scene = SCENE.CLEAR;
+      saveProgress(store, { high: game.high, level: Math.min(LEVELS.length, game.levelIndex + 2) });
+      if (game.runCoins > 0) { addCoins(store, game.runCoins); game.runCoins = 0; } // bank progress
+      audio.win();
+    }
   } else if (died) {
-    // Offer a continue if one is still available; otherwise end the run.
-    if (canCoinRevive() || !game.freeReviveUsed) game.scene = SCENE.REVIVE;
-    else endRun(SCENE.GAMEOVER);
+    handleDeath();
+  }
+}
+
+// Offer a continue if one is still available; otherwise end the run.
+function handleDeath() {
+  if (canCoinRevive() || !game.freeReviveUsed) game.scene = SCENE.REVIVE;
+  else endRun(SCENE.GAMEOVER);
+}
+
+// ---- boss fight (level 15) ----
+function updateBoss(dt) {
+  game.ambientT -= dt;
+  if (game.ambientT <= 0) { audio.ambient(0.3); game.ambientT = 12 + Math.random() * 13; }
+  game.player.update(dt, GROUND_TOP); // flat arena floor, no scrolling
+  const { events, defeated } = game.boss.update(dt, game.player);
+  for (const ev of events) {
+    if (ev.type === 'bosshit') {
+      game.bonus += BOSS_HIT_SCORE; fx.shake(9); audio.slash();
+      fx.burst(ev.x, ev.y, COLORS.bikram, 22, 280); fx.popup(ev.x, ev.y, 'HIT!', COLORS.energy);
+    } else if (ev.type === 'bossdeflect') {
+      fx.burst(ev.x, ev.y, COLORS.energy, 12); audio.slash();
+    } else if (ev.type === 'bosscast') {
+      audio.spirit();
+    } else if (ev.type === 'playerhit') {
+      const dead = game.player.hit(); audio.hit(); game.combo = 1;
+      fx.shake(12); fx.burst(ev.x, ev.y, COLORS.heart, 18, 300);
+      if (dead) { handleDeath(); return; }
+    }
+  }
+  game.score = Math.floor(game.distance / 10) + game.bonus;
+  if (game.score > game.high) { game.high = game.score; saveProgress(store, { high: game.high, level: LEVELS.length }); }
+  if (defeated) {
+    game.bonus += BOSS_SCORE; game.bossActive = false;
+    endRun(SCENE.VICTORY);
   }
 }
 
@@ -282,9 +325,15 @@ function revive(free) {
   p.hearts = START_HEARTS; p.invuln = REVIVE_INVULN_MS;
   p.dash = 0; p.fury = 0; p.cooldown = 0;
   p.y = GROUND_TOP - p.h; p.vy = 0; p.grounded = true; p.jumpsUsed = 0; p.coyote = 0; p.buffer = 0;
-  game.runtime.clearArea(game.camera); // wipe nearby hazards so we don't die instantly
   fx.shake(6);
-  game.scene = SCENE.PLAY;
+  if (game.bossActive && game.boss && !game.boss.dead) {
+    // back into the boss fight: clear orbs and give the boss a brief reprieve
+    game.boss.projectiles = []; game.boss.phase = 'idle'; game.boss.timer = 1.5; game.boss.invuln = 1.0;
+    game.scene = SCENE.BOSS;
+  } else {
+    game.runtime.clearArea(game.camera); // wipe nearby hazards so we don't die instantly
+    game.scene = SCENE.PLAY;
+  }
 }
 
 // ---- draw ----
@@ -377,6 +426,18 @@ function drawGoal() {
   ctx.drawImage(a.img, fr.sx, fr.sy, fr.sw, fr.sh, sx, GROUND_TOP - a.meta.fh, a.meta.fw, a.meta.fh);
 }
 
+function drawBossBar() {
+  const b = game.boss; if (!b) return;
+  const bw = 320, bh = 18, bx = (VW - bw) / 2, by = 100;
+  ctx.save();
+  ctx.textAlign = 'center'; ctx.fillStyle = COLORS.bikram; ctx.font = '30px Bangers, sans-serif';
+  ctx.fillText('B E T A A L', VW / 2, by - 8);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(bx, by, bw, bh);
+  ctx.fillStyle = '#e23744'; ctx.fillRect(bx, by, bw * Math.max(0, b.hp / b.maxHp), bh);
+  ctx.strokeStyle = COLORS.ink; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, bh);
+  ctx.restore();
+}
+
 function render() {
   ctx.clearRect(0, 0, VW, VH);
   drawBackground();
@@ -395,6 +456,9 @@ function render() {
     drawGoal();
     game.runtime.draw(ctx, assets, game.camera);
     drawPlayer();
+  } else if (game.scene === SCENE.BOSS) {
+    game.boss.draw(ctx, assets);
+    drawPlayer();
   }
   ctx.restore();
   applyComic(ctx, VW, VH);
@@ -405,12 +469,13 @@ function render() {
     ctx.fillStyle = '#ff6a1a'; ctx.fillRect(0, 0, VW, VH);
     ctx.restore();
   }
-  if (game.scene === SCENE.PLAY) {
+  if (game.scene === SCENE.PLAY || game.scene === SCENE.BOSS) {
     drawHud(ctx, assets, {
       hearts: game.player.hearts, energy: game.player.energy, score: game.score,
       level: game.levelIndex + 1, combo: game.combo, coins: game.baseCoins + game.runCoins,
     });
   }
+  if (game.scene === SCENE.BOSS) drawBossBar();
   if (game.scene === SCENE.TITLE) drawOverlay(ctx, 'title', { high: game.high, streak: dailyStreak, coins: game.baseCoins });
   if (game.scene === SCENE.LEVEL) drawOverlay(ctx, 'level', { level: game.levelIndex + 1 });
   if (game.scene === SCENE.REVIVE) drawOverlay(ctx, 'revive', { score: game.score });
