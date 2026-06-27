@@ -1,7 +1,7 @@
 import { VW, VH, COLORS } from '../constants.js';
 
 const COPY = {
-  title:    { t: 'BIKRAM BETAAL', s: '', p: 'TAP TO BEGIN' },
+  title:    { t: 'ବିକ୍ରମ ବେତାଳ', s: '', p: 'TAP TO BEGIN' },
   level:    { t: 'LEVEL', s: '', p: 'TAP TO RUN' },
   clear:    { t: 'BETAAL CAPTURED', s: '', p: 'TAP FOR NEXT LEVEL' },
   revive:   { t: 'CONTINUE?', s: '', p: 'TAP TO GIVE UP' },
@@ -28,7 +28,10 @@ export function drawOverlay(ctx, kind, data = {}) {
     titleY = top + h + 64;
   }
 
-  ctx.fillStyle = COLORS.bikram; ctx.font = '72px Bangers, sans-serif';
+  ctx.fillStyle = COLORS.bikram;
+  // The title screen name is in Odia script -> use Baloo Bhaina 2 (covers Odia);
+  // every other title stays in the comic Bangers face.
+  ctx.font = kind === 'title' ? '700 60px "Baloo Bhaina 2", sans-serif' : '72px Bangers, sans-serif';
   const title = kind === 'level' ? `LEVEL ${data.level || 1}` : c.t;
   ctx.fillText(title, VW / 2, titleY);
   if (c.s) { ctx.fillStyle = COLORS.text; ctx.font = '34px Bangers, sans-serif'; ctx.fillText(c.s, VW / 2, titleY + 50); }
