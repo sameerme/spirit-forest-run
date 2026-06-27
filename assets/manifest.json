@@ -1,5 +1,5 @@
 {
-  "bikram_run":     { "file": "bikram_run.png",     "frames": 3, "fw": 90,   "fh": 110 },
+  "bikram_run":     { "file": "bikram_run.png",     "frames": 4, "fw": 90,   "fh": 110 },
   "bikram_jump":    { "file": "bikram_jump.png",    "frames": 1, "fw": 90,   "fh": 110 },
   "bikram_hurt":    { "file": "bikram_hurt.png",    "frames": 1, "fw": 90,   "fh": 110 },
   "bikram_dash":    { "file": "bikram_dash.png",    "frames": 1, "fw": 110,  "fh": 110 },

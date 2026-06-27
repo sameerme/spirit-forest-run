@@ -304,20 +304,13 @@ function drawPlayer() {
   const cx = PLAYER_X - 6 + dw / 2;     // sprite centre
   const feet = p.y - 8 + dh + 10;       // ground-contact line (nudged down so feet plant)
 
-  // Fake a run with a bouncing gait + slight body rock while grounded. Stay
-  // upright while airborne. (Single-frame sprite, so the motion sells the running.)
-  let bob = 0, rot = 0;
-  const ph = performance.now() / 1000 * 16;
-  if (p.grounded && game.scene === SCENE.PLAY) {
-    bob = -Math.abs(Math.sin(ph)) * 6;  // bounce up off the ground
-    rot = Math.sin(ph) * 0.05;          // gentle rock
-  }
-
+  // The 4-pose run cycle bakes the bounce into the frames (feet on a common
+  // baseline, body height varies, peak lifted off the ground), so no extra
+  // programmatic bob/rock is needed. Stays upright while airborne.
   ctx.save();
   if (skinFilter && skinFilter !== 'none') ctx.filter = skinFilter; // selected skin tint
   ctx.translate(cx, feet);
-  ctx.rotate(rot);
-  ctx.drawImage(a.img, fr.sx, fr.sy, fr.sw, fr.sh, -dw / 2, -dh + bob, dw, dh);
+  ctx.drawImage(a.img, fr.sx, fr.sy, fr.sw, fr.sh, -dw / 2, -dh, dw, dh);
   ctx.restore();
 }
 
@@ -394,7 +387,7 @@ async function boot() {
   fitCanvas();
   assets = await loadAssets();
   anims = {
-    run: createSprite(3, 11), // 3 run frames (wide-contact + two strides)
+    run: createSprite(4, 12), // 4-pose run cycle: contact, down, push, peak
     dash: createSprite(4, 14),
     betaal: createSprite(4, 6),
   };
