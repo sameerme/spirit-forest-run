@@ -387,7 +387,7 @@ async function boot() {
   fitCanvas();
   assets = await loadAssets();
   anims = {
-    run: createSprite(4, 12), // 4-pose run cycle: contact, down, push, peak
+    run: createSprite(2, 9), // 2-pose run cycle: contact, push (2x-res frames)
     dash: createSprite(4, 14),
     betaal: createSprite(4, 6),
   };
