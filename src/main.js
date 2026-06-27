@@ -572,16 +572,6 @@ function fitCanvas() {
 
 async function boot() {
   fitCanvas();
-  // Preload the Odia title font (Baloo Bhaina 2) so the title screen renders it
-  // correctly on first paint instead of a fallback face.
-  try {
-    if (document.fonts && document.fonts.load) {
-      await Promise.race([
-        document.fonts.load('700 60px "Baloo Bhaina 2"', 'ବିକ୍ରମ ବେତାଳ'),
-        new Promise((r) => setTimeout(r, 2000)),
-      ]);
-    }
-  } catch { /* fall back to a system Odia face */ }
   assets = await loadAssets();
   anims = {
     run: createSprite(2, 9), // 2-pose run cycle: contact, push (2x-res frames)
