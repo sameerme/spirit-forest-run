@@ -1,10 +1,15 @@
-import { PLAYER_X, ENERGY_PER_SPHERE, GROUND_TOP, VW, VH } from '../constants.js';
+import {
+  PLAYER_X, ENERGY_PER_SPHERE, GROUND_TOP, VW, VH,
+  KILL_ENERGY, SHIELD_SPAWN_MIN_S, SHIELD_SPAWN_MAX_S,
+} from '../constants.js';
 
 const NO_FLOOR = 100000; // effective "ground" when the player is over a pit gap
 import { aabbOverlap } from '../engine/physics.js';
 import { createSprite, frameRect } from '../engine/sprite.js';
 import { entitiesToSpawn } from './spawner.js';
-import { worldBox, updateEntity } from './entities.js';
+import { worldBox, updateEntity, createShield } from './entities.js';
+
+const shieldInterval = () => SHIELD_SPAWN_MIN_S + Math.random() * (SHIELD_SPAWN_MAX_S - SHIELD_SPAWN_MIN_S);
 
 // Correction A: live-clone helper — creates a fresh animated entity from a
 // stripped blueprint so retries don't share mutable state and animations work.
@@ -22,6 +27,7 @@ export function createLevelRuntime(levelData) {
     distance: 0,
     spheres: 0,
     pitFalling: false,
+    shieldTimer: shieldInterval(), // seconds until the next shield power-up spawns
 
     // Effective floor under the player for this frame. Over a pit gap there is no
     // floor (the player falls); on solid ground / a platform it's GROUND_TOP.
@@ -61,6 +67,14 @@ export function createLevelRuntime(levelData) {
       if (arrived.has('spirit')) audio.spirit();
       this.idx = nextIndex;
 
+      // Occasionally drop a shield power-up ahead at a reachable height.
+      this.shieldTimer -= dt;
+      if (this.shieldTimer <= 0) {
+        const y = GROUND_TOP - 90 - Math.random() * 230;
+        this.active.push(makeLive(createShield(camera.x + VW + 80, y)));
+        this.shieldTimer = shieldInterval();
+      }
+
       let died = false;
       let supported = false; // is the player resting on a platform this frame?
       this.events = []; // {type:'sphere'|'stomp'|'hit', x, y} in SCREEN coords for fx
@@ -77,6 +91,11 @@ export function createLevelRuntime(levelData) {
             e.taken = true; player.addEnergy(ENERGY_PER_SPHERE); this.spheres++; audio.sphere();
             this.events.push({ type: 'sphere', x: ex, y: wb.y + wb.h / 2 });
           }
+        } else if (e.type === 'shield') {
+          if (aabbOverlap(pBox, wb)) {
+            e.taken = true; player.addShield();
+            this.events.push({ type: 'shieldget', x: ex, y: wb.y + wb.h / 2 });
+          }
         } else if (e.type === 'platform') {
           // land on / stay on the platform top while descending or resting on it
           const descending = player.vy >= 0;
@@ -88,8 +107,17 @@ export function createLevelRuntime(levelData) {
           }
         } else if (e.type === 'snake' || e.type === 'bat' || e.type === 'spirit') {
           if (aabbOverlap(pBox, wb)) {
-            if (player.isInvincible()) {
-              if (player.dash > 0) { e.consumed = true; this.events.push({ type: 'stomp', x: ex, y: wb.y }); }
+            // Stomp: coming DOWN onto the enemy's upper half kills it (and bounces).
+            const stomp = player.vy > 0 && (pBox.y + pBox.h) <= wb.y + wb.h * 0.6;
+            const offensive = player.dash > 0 || player.fury > 0; // sword strike / fury
+            if (offensive || stomp) {
+              e.consumed = true;
+              player.addEnergy(KILL_ENERGY);
+              if (stomp && !offensive) player.bounce();
+              audio.slash();
+              this.events.push({ type: 'kill', x: ex, y: wb.y + wb.h / 2 });
+            } else if (player.shield > 0 || player.invuln > 0) {
+              // protected — pass through harmlessly, no kill
             } else {
               const dead = player.hit(); audio.hit();
               this.events.push({ type: 'hit', x: PLAYER_X + player.w / 2, y: player.y + player.h / 2 });
@@ -122,6 +150,19 @@ export function createLevelRuntime(levelData) {
         const sx = e.worldX - camera.x;
         if (sx > VW + 120 || sx + (e.w || 0) < -120) continue;
         if (e.type === 'pit') continue; // pit is the absence of ground (handled by ground draw)
+        if (e.type === 'shield') {
+          const cx = sx + e.w / 2, cy = e.y + e.h / 2, r = e.w / 2;
+          ctx.save();
+          const g = ctx.createRadialGradient(cx, cy, r * 0.15, cx, cy, r);
+          g.addColorStop(0, 'rgba(190,242,255,0.95)'); g.addColorStop(1, 'rgba(90,180,255,0.12)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+          ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(210,247,255,0.95)'; ctx.stroke();
+          ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 4;
+          ctx.beginPath(); ctx.moveTo(cx, cy - r * 0.45); ctx.lineTo(cx, cy + r * 0.45);
+          ctx.moveTo(cx - r * 0.45, cy); ctx.lineTo(cx + r * 0.45, cy); ctx.stroke(); // plus glyph
+          ctx.restore();
+          continue;
+        }
         const key = e.type === 'platform' ? 'platform_log' : e.type;
         const a = assets.get(key);
         const fr = a.meta.frames > 1 && e.anim ? frameRect(a.meta, e.anim.frame % a.meta.frames) : { sx: 0, sy: 0, sw: a.meta.fw, sh: a.meta.fh };

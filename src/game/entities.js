@@ -16,6 +16,10 @@ export function createSpirit(worldX, baseY, amp = 90, freq = 0.9) {
 export function createSphere(worldX, y) {
   return { type: 'sphere', worldX, y, w: 52, h: 52, taken: false, anim: createSprite(4, 8) };
 }
+export function createShield(worldX, y) {
+  // protective power-up; gentle bob via the generic amp/sin path in updateEntity
+  return { type: 'shield', worldX, y, baseY: y, amp: 14, freq: 0.6, t: 0, w: 46, h: 46, taken: false };
+}
 export function createPit(worldX, tiles) {
   return { type: 'pit', worldX, tiles, w: tiles * TILE, h: TILE * 2 };
 }

@@ -1,4 +1,4 @@
-import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, COMBO_CAP, COIN_PER_SPHERE, SPHERE_SCORE } from './constants.js';
+import { VW, VH, TILE, GROUND_TOP, PLAYER_X, COLORS, ENERGY_PER_SPHERE, COMBO_CAP, COIN_PER_SPHERE, SPHERE_SCORE, ENEMY_KILL_SCORE } from './constants.js';
 import { loadAssets } from './engine/loader.js';
 import { createInput } from './engine/input.js';
 import { createCamera } from './engine/camera.js';
@@ -21,6 +21,7 @@ const ctx = canvas.getContext('2d');
 const shareBtn = document.getElementById('shareBtn');
 const dlBtn = document.getElementById('dlBtn');
 const muteBtn = document.getElementById('muteBtn');
+const furyBtn = document.getElementById('furyBtn');
 const toastEl = document.getElementById('toast');
 
 // Tarang+ store link, chosen by platform (App Store on iOS, Play Store elsewhere).
@@ -48,6 +49,11 @@ function applySound() {
 music.setEnabled(soundOn);
 audio.setMuted(!soundOn);
 muteBtn.textContent = soundOn ? '🔊' : '🔇';
+furyBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+furyBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (game.scene === SCENE.PLAY && game.player.startFury()) { fx.shake(8); }
+});
 muteBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
 muteBtn.addEventListener('click', (e) => {
   e.stopPropagation();
@@ -209,10 +215,15 @@ function update(dt) {
       game.runCoins += COIN_PER_SPHERE;
       fx.burst(ev.x, ev.y, COLORS.sphere, 12);
       fx.popup(ev.x, ev.y - 8, `+${pts}${game.combo > 1 ? ` x${game.combo}` : ''}`, COLORS.energy);
-    } else if (ev.type === 'stomp') {
-      game.bonus += SPHERE_SCORE * 2;
+    } else if (ev.type === 'kill') {
+      game.combo = Math.min(game.combo + 1, COMBO_CAP); // kills build the chain too
+      const pts = ENEMY_KILL_SCORE * game.combo;
+      game.bonus += pts;
       fx.burst(ev.x, ev.y, COLORS.spirit, 16);
-      fx.popup(ev.x, ev.y - 8, '+100', COLORS.text);
+      fx.popup(ev.x, ev.y - 8, `+${pts}`, COLORS.text);
+    } else if (ev.type === 'shieldget') {
+      fx.burst(ev.x, ev.y, COLORS.energy, 18);
+      fx.popup(ev.x, ev.y - 8, 'SHIELD!', COLORS.energy);
     } else if (ev.type === 'hit') {
       game.combo = 1; // break the chain
       fx.shake(12);
@@ -304,6 +315,17 @@ function drawPlayer() {
   const cx = PLAYER_X - 6 + dw / 2;     // sprite centre
   const feet = p.y - 8 + dh + 10;       // ground-contact line (nudged down so feet plant)
 
+  // Power aura: fury (orange) or shield (cyan) ring around Bikram.
+  if (p.fury > 0 || p.shield > 0) {
+    const ay = feet - dh / 2;
+    ctx.save();
+    ctx.globalAlpha = 0.45 + 0.15 * Math.sin(performance.now() / 90);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = p.fury > 0 ? '#ff8a3a' : '#7fdfff';
+    ctx.beginPath(); ctx.ellipse(cx, ay, dw * 0.72, dh * 0.62, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
   // The 4-pose run cycle bakes the bounce into the frames (feet on a common
   // baseline, body height varies, peak lifted off the ground), so no extra
   // programmatic bob/rock is needed. Stays upright while airborne.
@@ -344,6 +366,13 @@ function render() {
   }
   ctx.restore();
   applyComic(ctx, VW, VH);
+  // Fury Mode: pulsing warm overlay.
+  if (game.player.fury > 0) {
+    ctx.save();
+    ctx.globalAlpha = 0.16 + 0.06 * Math.sin(performance.now() / 70);
+    ctx.fillStyle = '#ff6a1a'; ctx.fillRect(0, 0, VW, VH);
+    ctx.restore();
+  }
   if (game.scene === SCENE.PLAY) {
     drawHud(ctx, assets, {
       hearts: game.player.hearts, energy: game.player.energy, score: game.score,
@@ -361,6 +390,8 @@ function render() {
   if (shareBtn.hidden === showEnd) shareBtn.hidden = !showEnd;
   if (dlBtn.hidden === showEnd) dlBtn.hidden = !showEnd;
   if (!showEnd && !toastEl.hidden) toastEl.hidden = true;
+  const showFury = game.scene === SCENE.PLAY && game.player.canFury();
+  if (furyBtn.hidden === showFury) furyBtn.hidden = !showFury;
   const onTitle = game.scene === SCENE.TITLE;
   if (skinBtn.hidden === onTitle) skinBtn.hidden = !onTitle;
   if (!onTitle && !skinsPanel.hidden) skinsPanel.hidden = true;

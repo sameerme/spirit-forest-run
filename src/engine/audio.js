@@ -74,6 +74,24 @@ export function createAudio() {
     },
 
     jump() { if (muted) return; blip(560, 110, 'square'); },
+
+    // Sword slash: a quick noise swoosh + a metallic ping (enemy kill feedback).
+    slash() {
+      if (muted) return;
+      const ac = ensure();
+      const now = ac.currentTime;
+      const s = noise();
+      const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.8;
+      bp.frequency.setValueAtTime(1200, now); bp.frequency.exponentialRampToValueAtTime(3600, now + 0.12);
+      const ng = ac.createGain();
+      ng.gain.setValueAtTime(0.06, now); ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      s.connect(bp).connect(ng).connect(ac.destination); s.start(now); s.stop(now + 0.18);
+      const o = ac.createOscillator(); o.type = 'triangle';
+      o.frequency.setValueAtTime(900, now); o.frequency.exponentialRampToValueAtTime(1700, now + 0.08);
+      const og = ac.createGain();
+      og.gain.setValueAtTime(0.05, now); og.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      o.connect(og).connect(ac.destination); o.start(now); o.stop(now + 0.13);
+    },
     hit() { if (muted) return; blip(180, 240, 'sawtooth', 0.07); },
     sphere() { if (muted) return; blip(880, 90, 'triangle', 0.06); },
     win() { if (muted) return; blip(660, 120); setTimeout(() => { if (!muted) blip(990, 180); }, 130); },

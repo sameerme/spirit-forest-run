@@ -14,7 +14,17 @@ export const PLAYER_H = 96;
 export const COYOTE_MS = 150;       // forgiving: jump shortly after leaving a ledge
 export const JUMP_BUFFER_MS = 170;  // forgiving: tap slightly before landing still jumps
 export const INVULN_MS = 1300;      // longer recovery i-frames after a hit
-export const DASH_MS = 2000;
+export const DASH_MS = 650;         // sword-strike active window (i-frames + kills)
+export const DASH_COOLDOWN_MS = 1100; // dash is cooldown-gated, not energy-gated
+
+// ---- Combat & powers (wave 2) ----
+export const FURY_MS = 4000;        // Fury Mode: invincible auto-kill duration
+export const SHIELD_MS = 6000;      // shield power-up protective window
+export const STOMP_BOUNCE_V = 640;  // upward bounce after stomping an enemy
+export const ENEMY_KILL_SCORE = 60; // base score per enemy killed (x combo)
+export const KILL_ENERGY = 6;       // energy gained per enemy killed (feeds Fury)
+export const SHIELD_SPAWN_MIN_S = 26; // shield pickup spawn interval (seconds)
+export const SHIELD_SPAWN_MAX_S = 42;
 
 export const COMBO_CAP = 6;          // max sphere score multiplier
 export const COIN_PER_SPHERE = 1;    // coins banked per sphere

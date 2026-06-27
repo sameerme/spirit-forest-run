@@ -57,14 +57,24 @@ test('hit returns true when the last heart is lost', () => {
   assert.ok(p.hearts <= 0);
 });
 
-test('energy caps and dash only triggers when full, then empties', () => {
+test('energy caps at ENERGY_MAX and feeds Fury (not dash)', () => {
   const p = createPlayer();
-  p.addEnergy(40); assert.equal(p.startDash(), false);
+  p.addEnergy(40); assert.equal(p.canFury(), false);
   p.addEnergy(1000); assert.equal(p.energy, ENERGY_MAX);
-  assert.equal(p.startDash(), true);
-  assert.ok(p.dash > 0);
+  assert.equal(p.canFury(), true);
+  assert.equal(p.startFury(), true);
+  assert.ok(p.fury > 0);
+  assert.equal(p.energy, 0, 'fury empties the bar');
+  assert.equal(p.isInvincible(), true, 'invincible during fury');
+});
+
+test('dash is cooldown-gated and grants i-frames (no energy cost)', () => {
+  const p = createPlayer();
   assert.equal(p.energy, 0);
+  assert.equal(p.startDash(), true, 'dash works with an empty bar');
+  assert.ok(p.dash > 0);
   assert.equal(p.isInvincible(), true);
+  assert.equal(p.startDash(), false, 'still on cooldown');
 });
 
 test('coyote time lets the player jump shortly after leaving a ledge', () => {

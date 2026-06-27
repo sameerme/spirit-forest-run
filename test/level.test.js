@@ -3,10 +3,16 @@ import assert from 'node:assert/strict';
 import { createLevelRuntime } from '../src/game/level.js';
 import { createPlayer } from '../src/game/player.js';
 import { createCamera } from '../src/engine/camera.js';
-import { GROUND_TOP, PLAYER_H, PLAYER_X, VH, TILE } from '../src/constants.js';
+import { createSnake } from '../src/game/entities.js';
+import { GROUND_TOP, PLAYER_H, PLAYER_X, VH, TILE, ENERGY_MAX, START_HEARTS } from '../src/constants.js';
 
-const audio = { jump() {}, hit() {}, sphere() {}, win() {}, resume() {}, snake() {}, bat() {}, spirit() {} };
+const audio = { jump() {}, hit() {}, sphere() {}, win() {}, resume() {}, snake() {}, bat() {}, spirit() {}, slash() {} };
 const STAND_Y = GROUND_TOP - PLAYER_H;
+
+function snakeLevel() {
+  // a snake parked at the player's fixed screen position (camera at 0)
+  return { speed: 0, minGap: 0, length: 100000, goalX: 99999, entities: [createSnake(PLAYER_X)] };
+}
 
 function pitLevel() {
   // a wide pit sitting under the player's fixed screen position (camera at 0)
@@ -83,4 +89,62 @@ test('player falls back to the ground after crossing a platform', () => {
   }
   assert.ok(stoodOnPlatform, 'player should rest on the platform first');
   assert.ok(landedGround, 'player should fall to the ground after leaving the platform');
+});
+
+// ---- Combat & powers (wave 2) ----
+
+test('dash is cooldown-gated (no energy needed, not re-triggerable instantly)', () => {
+  const player = createPlayer();
+  assert.equal(player.startDash(), true, 'first dash starts');
+  assert.equal(player.startDash(), false, 'cannot dash again until the cooldown elapses');
+});
+
+test('fury needs a full energy bar and consumes it', () => {
+  const player = createPlayer();
+  assert.equal(player.startFury(), false, 'cannot fury without energy');
+  player.addEnergy(ENERGY_MAX);
+  assert.equal(player.canFury(), true);
+  assert.equal(player.startFury(), true);
+  assert.equal(player.energy, 0, 'fury empties the energy bar');
+});
+
+test('dashing into an enemy kills it and takes no damage', () => {
+  const player = createPlayer();
+  const camera = createCamera();
+  const rt = createLevelRuntime(snakeLevel());
+  player.startDash();
+  rt.update(1 / 60, camera, player, audio);
+  assert.ok(rt.events.some((e) => e.type === 'kill'), 'dash kills the overlapping snake');
+  assert.equal(player.hearts, START_HEARTS, 'no damage during a dash strike');
+});
+
+test('stomping an enemy from above kills it and bounces the player', () => {
+  const player = createPlayer();
+  const camera = createCamera();
+  const rt = createLevelRuntime(snakeLevel());
+  player.grounded = false; player.vy = 200;
+  player.y = GROUND_TOP - PLAYER_H - 40; // airborne, descending onto the snake's top
+  rt.update(1 / 60, camera, player, audio);
+  assert.ok(rt.events.some((e) => e.type === 'kill'), 'stomp kills the snake');
+  assert.ok(player.vy < 0, 'player bounces upward off the stomped enemy');
+  assert.equal(player.hearts, START_HEARTS, 'no damage from a stomp');
+});
+
+test('shield protects from a hit without killing the enemy', () => {
+  const player = createPlayer();
+  const camera = createCamera();
+  const rt = createLevelRuntime(snakeLevel());
+  player.addShield();
+  rt.update(1 / 60, camera, player, audio);
+  assert.equal(player.hearts, START_HEARTS, 'shield blocks the damage');
+  assert.ok(!rt.events.some((e) => e.type === 'kill'), 'shield protects but does not kill');
+});
+
+test('running into an enemy with no power costs a heart', () => {
+  const player = createPlayer();
+  const camera = createCamera();
+  const rt = createLevelRuntime(snakeLevel());
+  rt.update(1 / 60, camera, player, audio); // grounded, no dash/fury/shield
+  assert.ok(rt.events.some((e) => e.type === 'hit'), 'unprotected contact is a hit');
+  assert.equal(player.hearts, START_HEARTS - 1, 'lost one heart');
 });
